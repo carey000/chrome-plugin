@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "A无人驾驶",
+  "version": "1.0.0",
+  "description": "书山有路勤为径，学海无涯自动舟",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "permissions": [
+    "sidePanel", // 侧边栏权限
+    "storage",
+    "scripting",
+    "activeTab",
+    "tabs",
+    "contextMenus",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "side_panel": {
+    "default_path": "popup/popup.html"
+  },
+  "action": {
+    "default_icon": "assets/icons/icon128.png",
+    "default_title": "弹出框",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background/service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
