@@ -1,13 +1,28 @@
+// 配置常量
+const CONFIG = {
+  END_THRESHOLD: 40, // 视频结束阈值（秒）
+  PLAYBACK_RATE: 2, // 播放速度
+  MIN_DURATION: 120 // 最小视频时长（秒），小于此值不自动返回
+}
+
 function study(callback) {
-  // 在定时器外部选择DOM元素
-  const btnClose = document.querySelector('.ant-modal-footer button')
-  const getModalMask = () => document.querySelector('.ant-modal-mask')
-  let videoElement = document.querySelector('video')
+  // DOM 元素选择器
+  const selectors = {
+    closeButton: '.ant-modal-footer button',
+    modalMask: '.ant-modal-mask',
+    video: 'video'
+  }
+
+  // 获取必要的 DOM 元素
+  const btnClose = document.querySelector(selectors.closeButton)
+  const getModalMask = () => document.querySelector(selectors.modalMask)
+  let videoElement = document.querySelector(selectors.video)
 
   if (!videoElement) {
-    console.error('Video element not found.')
+    console.error('未找到视频元素，请确认页面加载完成')
   } else {
-    videoElement.muted = true // 静音
+    try {
+      videoElement.muted = true // 静音
     videoElement.playbackRate = 6 // 倍速
 
     // watchTimer
@@ -45,6 +60,9 @@ function study(callback) {
         }
       }
     }, 2 * 1000)
+    } catch (error) {
+      console.error('续播过程出错:', error)
+    }
   }
 }
 
@@ -62,26 +80,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
     case 'activated':
       console.log(`%c>> $`, 'color:yellow', 'tab 被激活了，开始干活', message, sender)
-      // const timer = setInterval(() => {
-      //   console.log(`%c>> $`, 'color:yellow', 111)
-      // }, 1000)
-      // sendResponse({ timer })
-      // window.onload(function() {
-      //   console.log(`%c>> $`, 'color:yellow', 'loaded')
-      //   study(sendResponse)
-      // })
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            console.log(`%c>> $`, 'color:yellow', '元素进入视口')
-            study(sendResponse)
+
+      let _video;
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList' && !_video) {
+            _video = mutation.target.querySelector('video')
+
+            if(_video) {
+              console.log(`%c>> $`, 'color:yellow', '子元素发生变化', mutation.target, mutation.target.classList, _video)
+              // study(_video)
+              observer.disconnect()
+            }
           }
         })
       })
-      observer.observe(document.querySelector('video'))
-      // setTimeout(() => {
-      //   study(sendResponse)
-      // }, 2000)
+      observer.observe(document.body, { childList: true, subtree: true })
+
       return true // 返回 true 表示消息处理函数是异步的，sendResponse 将在消息处理函数执行完毕后调用
 
     case 'log':
