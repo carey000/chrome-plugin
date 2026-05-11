@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "A无人驾驶",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "书山有路勤为径，学海无涯自动舟",
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -26,13 +26,14 @@
     "default_path": "popup/popup.html"
   },
   "action": {
-    "default_icon": "assets/icons/icon128.png",
-    "default_title": "弹出框",
-    "default_popup": "popup/popup.html"
+    "default_icon": "assets/icons/icon128.png", // 工具栏展示的图片
+    "default_title": "弹出框",                   // hover 插件图标展示的文案
+    "default_popup": "popup/popup.html"         // 点击图标弹出框的页面
   },
   "background": {
     // "service_worker": "background/service_worker.js"
-    "service_worker": "background/background.js"
+    "service_worker": "background/background.js" // V3 中使用 service worker 替换 background 页面
+    // "type": "module"                          // 使用模块化语法
   },
   "content_scripts": [
     {
