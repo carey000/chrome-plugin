@@ -197,253 +197,261 @@ class BaiduSite extends SiteHandler {
 class KaoshibaoSite extends SiteHandler {
   constructor() {
     super()
-    this._ksbSiteMo = null
-    this._ksbDomFixScheduled = false
-    this._analysisWrapAttr = 'data-ksb-analysis-wrap'
-    this._originAnalysisClickPending = false
-    this._originAnalysisClickAt = 0
-    this._originAnalysisRetryTimer = null
-    this._originAnalysisFailedKeys = new Set()
-    this._originAnalysisCaptureClass = 'ksb-origin-analysis-capturing'
+    this._mo = null
+    this._scheduled = false
+    this._originCardAttr = 'data-ksb-origin-analysis-card'
+    this._originCaptureClass = 'ksb-origin-analysis-capturing'
+    this._originTextCache = new Map()
+    this._pendingQuestionKey = ''
+    this._pendingTimer = null
+    this._pendingStartedAt = 0
   }
 
   matches(hostname) {
     return hostname === 'kaoshibao.com' || hostname.endsWith('.kaoshibao.com')
   }
 
-  _pauseMutationObserverForDomWork() {
-    if (this._ksbSiteMo) this._ksbSiteMo.disconnect()
-  }
-
-  _resumeMutationObserverAfterDomWork() {
-    queueMicrotask(() => {
-      this._cleanupOriginAnalysisOverlays()
-      requestAnimationFrame(() => {
-        this._cleanupOriginAnalysisOverlays()
-        this._setOriginAnalysisCaptureMode(false)
-      })
-      this._ksbSiteMo?.observe(document.documentElement, {
-        attributes: true,
-        characterData: true,
-        childList: true,
-        subtree: true
-      })
-    })
-  }
-
-  _ensureOriginAnalysisCaptureStyle() {
+  _ensureStyle() {
     if (document.getElementById('ksb-origin-analysis-capture-style')) return
 
     const styleEl = document.createElement('style')
     styleEl.id = 'ksb-origin-analysis-capture-style'
     styleEl.textContent = `
-      body.${this._originAnalysisCaptureClass} .v-modal,
-      body.${this._originAnalysisCaptureClass} .el-dialog__wrapper {
-        display: none !important;
+      body.${this._originCaptureClass} .v-modal,
+      body.${this._originCaptureClass} .el-dialog__wrapper {
         opacity: 0 !important;
         pointer-events: none !important;
         visibility: hidden !important;
+      }
+      [${this._originCardAttr}] {
+        margin: 14px 0 0;
+        padding: 12px 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        background: #eff6ff;
+        color: #1f2937;
+        line-height: 1.7;
+        font-size: 15px;
+        user-select: text;
+      }
+      [${this._originCardAttr}] .ksb-origin-title {
+        margin-bottom: 6px;
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+      [${this._originCardAttr}] .ksb-origin-text {
+        white-space: pre-wrap;
       }
     `
     document.head?.appendChild(styleEl)
   }
 
-  _setOriginAnalysisCaptureMode(enabled) {
-    this._ensureOriginAnalysisCaptureStyle()
-    document.body?.classList.toggle(this._originAnalysisCaptureClass, enabled)
+  _setCaptureMode(enabled) {
+    this._ensureStyle()
+    document.body?.classList.toggle(this._originCaptureClass, enabled)
   }
 
-  _cleanupOriginAnalysisOverlays() {
-    document.querySelectorAll('.v-modal').forEach((el) => {
-      el.remove()
-    })
-    document.querySelectorAll('.el-dialog__wrapper').forEach((el) => {
-      if (el.querySelector?.('.origin-analysis-dialog') && el.style.display !== 'none') {
-        el.style.display = 'none'
-      }
-    })
+  _getPracticeRoot() {
+    return document.querySelector('.lianxi-content')
   }
 
-  _closeOriginAnalysisDialogAndCleanupOverlays() {
-    const headerBtn = document.querySelector('.origin-analysis-dialog .el-dialog__headerbtn')
-    this._pauseMutationObserverForDomWork()
-    headerBtn?.click()
-    this._resumeMutationObserverAfterDomWork()
+  _isAnswered(root = this._getPracticeRoot()) {
+    return !!root?.querySelector('.answer-box, .answer-box-detail')
   }
 
-  _resetOriginAnalysisRequest() {
-    this._originAnalysisClickPending = false
-    this._originAnalysisClickAt = 0
-    if (this._originAnalysisRetryTimer) {
-      clearTimeout(this._originAnalysisRetryTimer)
-      this._originAnalysisRetryTimer = null
-    }
-  }
-
-  _scheduleOriginAnalysisRetry(delay = 800) {
-    if (this._originAnalysisRetryTimer) clearTimeout(this._originAnalysisRetryTimer)
-    this._originAnalysisRetryTimer = setTimeout(() => {
-      this._originAnalysisRetryTimer = null
-      this._applyDomTweaks()
-    }, delay)
-  }
-
-  _hasAiAnalysis() {
-    return !!document.querySelector('.answer-analysis-row .answer-analysis, .answer-analysis-row .analysis-mask')
-  }
-
-  _ensureAiAnalysisExpanded() {
-    const answerMaskEl = document.querySelector('.answer-analysis-row.hide-height')
-    const checkAllBtnRowEl = document.querySelector('.check-all-btn-row')
-    const analysisMaskEl = document.querySelector('.analysis-mask')
-
-    if (answerMaskEl) answerMaskEl.classList.remove('hide-height')
-    if (checkAllBtnRowEl && checkAllBtnRowEl.style.display !== 'none') {
-      checkAllBtnRowEl.style.display = 'none'
-    }
-    if (analysisMaskEl && analysisMaskEl.style.display !== 'none') {
-      analysisMaskEl.style.display = 'none'
-    }
-  }
-
-  _getCurrentQuestionKey() {
-    const topicNum = document.querySelector('.topic-num')?.textContent?.trim() || ''
-    const questionTitle = document.querySelector('.qusetion-title')?.textContent?.trim() || ''
+  _getQuestionKey(root = this._getPracticeRoot()) {
+    const topicNum = root?.querySelector('.topic-num')?.textContent?.trim() || ''
+    const questionTitle = root?.querySelector('.qusetion-title')?.textContent?.trim() || ''
     return `${topicNum}|${questionTitle}`
   }
 
-  _createOriginAnalysisWrap() {
-    const wrap = document.createElement('div')
-    wrap.setAttribute(this._analysisWrapAttr, '')
-    wrap.style.cssText = [
-      'margin:12px 0',
-      'padding:12px 14px',
-      'border-radius:8px',
-      'background:#fff',
-      'border:1px solid #e5e7eb',
-      'line-height:1.65',
-      'color:#111827',
-      'box-shadow:0 1px 2px rgba(0,0,0,.04)'
-    ].join(';')
-    return wrap
+  _clearPending() {
+    this._pendingQuestionKey = ''
+    this._pendingStartedAt = 0
+    if (this._pendingTimer) {
+      clearTimeout(this._pendingTimer)
+      this._pendingTimer = null
+    }
   }
 
-  _findOriginAnalysisContentEl() {
-    const directEl = document.querySelector('.origin-analysis-dialog .origin-analysis-text')
-    if (directEl?.textContent?.trim()) return directEl
-
-    const dialogWrapEl = Array.from(document.querySelectorAll('.el-dialog__wrapper')).find((el) => (
-      el.textContent?.includes('原解析')
-    ))
-    const dialogBodyEl = dialogWrapEl?.querySelector('.el-dialog__body')
-    if (!dialogBodyEl) return null
-
-    const clonedBodyEl = dialogBodyEl.cloneNode(true)
-    clonedBodyEl.querySelectorAll('button, .el-button').forEach((el) => el.remove())
-
-    const originText = clonedBodyEl.textContent?.replace(/\s+/g, ' ').trim()
-    if (!originText || originText === '复制') return null
-
-    const contentEl = document.createElement('div')
-    contentEl.className = 'origin-analysis-text'
-    contentEl.textContent = originText
-    return contentEl
+  _scheduleApply(delay = 120) {
+    if (this._pendingTimer) clearTimeout(this._pendingTimer)
+    this._pendingTimer = setTimeout(() => {
+      this._pendingTimer = null
+      this._apply()
+    }, delay)
   }
 
-  _moveOriginAnalysisIntoPage() {
-    const answerAnalysisRowEl = document.querySelector('.answer-analysis-row')
-    const originAnalysisTextEl = this._findOriginAnalysisContentEl()
-    const questionKey = this._getCurrentQuestionKey()
+  _expandAiAnalysis(root) {
+    const row = root.querySelector('.answer-analysis-row')
+    const checkAllBtnRow = root.querySelector('.check-all-btn-row')
 
-    if (!answerAnalysisRowEl || !originAnalysisTextEl) return false
+    row?.classList.remove('hide-height')
+    root.querySelectorAll('.analysis-mask').forEach((el) => {
+      el.style.setProperty('display', 'none', 'important')
+      el.remove()
+    })
+    if (checkAllBtnRow) {
+      checkAllBtnRow.style.setProperty('display', 'none', 'important')
+    }
+    root.querySelectorAll('.hide-ai-analysis').forEach((el) => {
+      el.style.setProperty('display', 'none', 'important')
+      el.remove()
+    })
+    const paragraph = root.querySelector('.answer-analysis')
+    if (paragraph) {
+      paragraph.style.removeProperty('height')
+      paragraph.style.removeProperty('max-height')
+      paragraph.style.removeProperty('overflow')
+    }
+  }
 
-    const originText = originAnalysisTextEl.textContent?.trim()
-    if (!originText) return false
+  _isVisibleDialogPart(el) {
+    const wrapper = el?.closest?.('.el-dialog__wrapper') || el
+    return !!wrapper && getComputedStyle(wrapper).display !== 'none'
+  }
 
-    const existingWrap = answerAnalysisRowEl.querySelector(`[${this._analysisWrapAttr}]`)
-    const wrap = existingWrap || this._createOriginAnalysisWrap()
+  _extractOriginText() {
+    const directEl = Array.from(document.querySelectorAll('.origin-analysis-dialog .origin-analysis-text')).find((el) => {
+      return this._isVisibleDialogPart(el)
+    })
+    const directText = directEl?.textContent?.trim()
+    if (directText) return directText
 
-    if (!existingWrap) answerAnalysisRowEl.appendChild(wrap)
-    wrap.dataset.ksbQuestionKey = questionKey
-    wrap.replaceChildren(originAnalysisTextEl)
-    this._resetOriginAnalysisRequest()
-    this._closeOriginAnalysisDialogAndCleanupOverlays()
+    const dialog = Array.from(document.querySelectorAll('.el-dialog__wrapper, .el-dialog')).find((el) => {
+      return this._isVisibleDialogPart(el) && el.textContent?.includes('原解析')
+    })
+    if (!dialog) return ''
+
+    const body = dialog.querySelector('.el-dialog__body') || dialog
+    const clone = body.cloneNode(true)
+    clone.querySelectorAll('button, .el-button, .el-dialog__headerbtn').forEach((el) => el.remove())
+    return clone.textContent?.replace(/\s+/g, ' ').replace(/^原解析\s*/, '').replace(/\s*复制$/, '').trim() || ''
+  }
+
+  _closeOriginDialog() {
+    const closeBtn = document.querySelector('.origin-analysis-dialog .el-dialog__headerbtn, .origin-analysis-dialog .el-dialog__close')
+    closeBtn?.click()
+    setTimeout(() => {
+      document.querySelectorAll('.v-modal').forEach((el) => el.remove())
+      if (!this._pendingQuestionKey) this._setCaptureMode(false)
+    }, 120)
+  }
+
+  _findOriginCard(root, questionKey) {
+    return Array.from(root.querySelectorAll(`[${this._originCardAttr}]`)).find((el) => {
+      return el.dataset.ksbQuestionKey === questionKey
+    })
+  }
+
+  _renderOriginText(root, questionKey, originText) {
+    const anchor = root.querySelector('.answer-analysis-row')
+    if (!anchor || !originText) return false
+
+    root.querySelectorAll(`[${this._originCardAttr}]`).forEach((el) => {
+      if (el.dataset.ksbQuestionKey !== questionKey) el.remove()
+    })
+
+    let card = this._findOriginCard(root, questionKey)
+    if (!card) {
+      card = document.createElement('div')
+      card.setAttribute(this._originCardAttr, '')
+      card.dataset.ksbQuestionKey = questionKey
+      anchor.insertAdjacentElement('afterend', card)
+    }
+
+    card.replaceChildren()
+    const title = document.createElement('div')
+    title.className = 'ksb-origin-title'
+    title.textContent = '原解析'
+    const text = document.createElement('div')
+    text.className = 'ksb-origin-text'
+    text.textContent = originText
+    card.append(title, text)
     return true
   }
 
-  _requestOriginAnalysisIfNeeded() {
-    const answerAnalysisRowEl = document.querySelector('.answer-analysis-row')
-    const checkOriginTextBtnEl = document.querySelector('.check-origin-text')
-    const existingWrap = answerAnalysisRowEl?.querySelector(`[${this._analysisWrapAttr}]`)
-    const questionKey = this._getCurrentQuestionKey()
-
-    if (existingWrap && existingWrap.dataset.ksbQuestionKey !== questionKey) {
-      existingWrap.remove()
-      this._resetOriginAnalysisRequest()
+  _loadOriginText(root, questionKey) {
+    const cachedText = this._originTextCache.get(questionKey)
+    if (cachedText) {
+      this._renderOriginText(root, questionKey, cachedText)
+      return
     }
 
-    if (this._originAnalysisClickPending) {
-      const pendingMs = Date.now() - this._originAnalysisClickAt
-      if (pendingMs > 1200) {
-        this._originAnalysisFailedKeys.add(questionKey)
-        this._resetOriginAnalysisRequest()
-        this._closeOriginAnalysisDialogAndCleanupOverlays()
+    if (this._findOriginCard(root, questionKey)) return
+
+    if (this._pendingQuestionKey && this._pendingQuestionKey !== questionKey) {
+      this._clearPending()
+      this._closeOriginDialog()
+    }
+
+    if (this._pendingQuestionKey === questionKey) {
+      const currentText = this._extractOriginText()
+      if (currentText) {
+        this._originTextCache.set(questionKey, currentText)
+        this._renderOriginText(root, questionKey, currentText)
+        this._clearPending()
+        this._closeOriginDialog()
+        return
+      }
+
+      if (Date.now() - this._pendingStartedAt < 3500) {
+        this._scheduleApply(180)
       } else {
-        this._scheduleOriginAnalysisRetry(Math.max(200, 1300 - pendingMs))
+        this._clearPending()
+        this._closeOriginDialog()
       }
       return
     }
 
-    if (
-      !answerAnalysisRowEl ||
-      answerAnalysisRowEl.querySelector(`[${this._analysisWrapAttr}]`) ||
-      this._originAnalysisFailedKeys.has(questionKey) ||
-      this._originAnalysisClickPending
-    ) {
-      return
-    }
-    if (!checkOriginTextBtnEl) return
+    const trigger = root.querySelector('.check-origin-text')
+    if (!trigger) return
 
-    this._originAnalysisClickPending = true
-    this._originAnalysisClickAt = Date.now()
-    this._setOriginAnalysisCaptureMode(true)
-    checkOriginTextBtnEl.click()
-    this._scheduleOriginAnalysisRetry(300)
+    this._pendingQuestionKey = questionKey
+    this._pendingStartedAt = Date.now()
+    this._setCaptureMode(true)
+    trigger.click()
+    this._scheduleApply(180)
   }
 
-  _applyDomTweaks() {
-    const vipEl = document.querySelector('.vip-quanyi')
-    if (vipEl && vipEl.style.display !== 'none') vipEl.style.display = 'none'
+  _apply() {
+    const root = this._getPracticeRoot()
+    this._ensureStyle()
+
+    if (!root || !this._isAnswered(root)) {
+      this._clearPending()
+      this._setCaptureMode(false)
+      root?.querySelectorAll(`[${this._originCardAttr}]`).forEach((el) => el.remove())
+      return
+    }
+
+    root.querySelectorAll('.vip-quanyi').forEach((el) => {
+      el.style.setProperty('display', 'none', 'important')
+    })
     if (document.body && document.body.style.opacity === '0.6') document.body.style.opacity = ''
 
     const middleContainerEl = document.querySelector('.middle-container.bj-eee')
-
-    if (this._hasAiAnalysis()) {
-      this._ensureAiAnalysisExpanded()
-      if (!this._moveOriginAnalysisIntoPage()) this._requestOriginAnalysisIfNeeded()
-    } else {
-      this._resetOriginAnalysisRequest()
-      this._setOriginAnalysisCaptureMode(false)
-    }
-
     if (middleContainerEl && middleContainerEl.style.transform !== 'translateY(-25px)') {
       middleContainerEl.style.transform = 'translateY(-25px)'
     }
+
+    this._expandAiAnalysis(root)
+    this._loadOriginText(root, this._getQuestionKey(root))
   }
 
   init() {
-    if (this._ksbSiteMo) return
-    this._applyDomTweaks()
+    if (this._mo) return
+    this._apply()
 
-    this._ksbSiteMo = new MutationObserver(() => {
-      if (this._ksbDomFixScheduled) return
-      this._ksbDomFixScheduled = true
+    this._mo = new MutationObserver(() => {
+      if (this._scheduled) return
+      this._scheduled = true
       requestAnimationFrame(() => {
-        this._ksbDomFixScheduled = false
-        this._applyDomTweaks()
+        this._scheduled = false
+        this._apply()
       })
     })
-    this._ksbSiteMo.observe(document.documentElement, {
+    this._mo.observe(document.documentElement, {
       attributes: true,
       characterData: true,
       childList: true,
@@ -453,10 +461,11 @@ class KaoshibaoSite extends SiteHandler {
 
   restartTweaks() {
     if (!this.matches(location.hostname)) return
-    this._ksbDomFixScheduled = false
-    if (this._ksbSiteMo) {
-      this._ksbSiteMo.disconnect()
-      this._ksbSiteMo = null
+    this._scheduled = false
+    this._clearPending()
+    if (this._mo) {
+      this._mo.disconnect()
+      this._mo = null
     }
     this.init()
   }
