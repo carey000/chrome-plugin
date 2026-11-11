@@ -1,16 +1,9 @@
-const timers = new Map()
-
-/** content script 只会注入到普通 http(s) 页，对 chrome:// 等发消息会报 Receiving end does not exist */
+// 仅向可注入脚本的 http(s) 页面发消息，避免 chrome:// 等页面报 "Receiving end does not exist"
 function isInjectableUrl(url) {
   if (!url || typeof url !== 'string') return false
   return url.startsWith('http://') || url.startsWith('https://')
 }
 
-/**
- * @param {number} tabId
- * @param {object} message
- * @param {(response: any) => void} [onReply] 不传表示发完即走，不等待回复
- */
 function sendToTab(tabId, message, onReply) {
   chrome.tabs.get(tabId, (tab) => {
     if (chrome.runtime.lastError) return
@@ -29,48 +22,11 @@ function sendToTab(tabId, message, onReply) {
   })
 }
 
-function works(currentTabId) {
-  if (!timers.has(currentTabId)) {
-    sendToTab(
-      currentTabId,
-      {
-        action: 'activated',
-        timers
-      },
-      (response) => {
-        console.log(`%c>> $tab被点击之后，传给service_script.js`, 'color:yellow', response)
-        if (response?.timer) {
-          timers.set(currentTabId, response?.timer)
-        }
-      }
-    )
-  } else {
-    sendToTab(currentTabId, {
-      action: 'log',
-      logMsg: '已经在干活啦～',
-      logData: timers
-    })
-  }
-}
-// 监听标签页被激活的事件
-// chrome.tabs.onActivated.addListener((activeInfo) => {
-//   tabObserver['__activeInfo__'] = activeInfo
-//   currentActiveTabId = activeInfo.tabId
-
-//   chrome.tabs.get(activeInfo.tabId, (currentTabInfo) => {
-//     works(activeInfo.tabId)
-//   })
-// })
-
-// 监听标签页更新（包括刷新）
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  console.log(`%c>> $刷新-更新`, 'color:yellow', tabId, changeInfo)
-
-  if (changeInfo.status === 'complete') {
-    sendToTab(tabId, {
-      action: 'updated',
-      logMsg: 'geng xin～'
-    })
-    works(tabId)
-  }
+// 标签页加载完成：先通知内容脚本重新应用（如考试宝 restart），再触发「激活」逻辑
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== 'complete') return
+  sendToTab(tabId, { action: 'updated' })
+  sendToTab(tabId, { action: 'activated' }, (res) => {
+    console.log('%c>> $', 'color:yellow', 'tab 激活回调', res)
+  })
 })

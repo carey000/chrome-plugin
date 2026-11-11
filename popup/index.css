@@ -10,51 +10,131 @@ body {
   outline: unset;
 }
 body {
-  width: 450px;
+  width: 360px;
   height: auto;
   border-radius: 20px;
-  padding: 16px
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  color: #333;
 }
 
 .wrapper {
-  /* background-color: #fafafa; */
   border-radius: 20px;
 }
 .title {
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   display: flex;
   gap: 8px;
   align-items: center;
   color: #404040;
+  font-size: 18px;
 }
-#kxy {
+.subtitle {
+  color: #999;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+/* 功能开关列表 */
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 12px;
+}
+.feature-meta {
+  flex: 1;
+  min-width: 0;
+}
+.feature-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+.feature-desc {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* 开关 */
+.switch {
+  position: relative;
   display: inline-block;
-  font-size: .72em;
-  text-decoration: underline;
-  font-weight: 500;
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  border-radius: 24px;
+  transition: background-color 0.2s;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.switch input:checked + .slider {
+  background-color: blueviolet;
+}
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+.jump {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  text-decoration: none;
+  font-weight: 600;
   background-color: blueviolet;
   color: #fff;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 8px 12px;
 }
 
 .tips {
-  padding-top: 10px;
+  padding-top: 12px;
   padding-left: 16px;
 }
-
 .tips li {
-  color: #555;
+  color: #777;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.tips li a {
+  color: blueviolet;
 }
 
-.tips li:not(:last-child) {
-  padding-bottom: 4px;
-}
-
-.tips li a{
-  color: blueviolet
-}
-
-strong {
-  text-decoration: underline;
+.debug {
+  margin-top: 10px;
+  font-size: 10px;
+  color: #bbb;
+  word-break: break-all;
 }
