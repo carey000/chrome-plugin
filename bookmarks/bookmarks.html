@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>书签管理</title>
+    <link rel="stylesheet" href="./bookmarks.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-meta">
+          <span class="count" id="countLabel"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Chrome 原生标签组（chrome.tabGroups），可折叠查看组内标签 -->
+      <section class="groups" id="groupsPanel" hidden>
+        <div class="groups-head">
+          <div class="groups-heading">
+            <h2 class="groups-title">标签组</h2>
+            <span class="groups-summary" id="groupsSummary"></span>
+          </div>
+          <button class="icon-btn" id="refreshGroups" type="button" title="刷新标签组">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <div class="groups-list" id="groupsList"></div>
+      </section>
+
+      <nav class="crumbs" id="crumbs" aria-label="书签路径"></nav>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty" hidden>
+        <div class="empty-icon"></div>
+        <p>这个文件夹里还没有内容</p>
+      </div>
+    </main>
+
+    <div class="modal-mask" id="editorMask" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+        <div class="modal-head">
+          <h2 id="editorTitle">编辑书签</h2>
+          <button class="icon-btn" id="closeEditor" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <form id="editorForm">
+          <label class="field">
+            <span class="field-label">标题</span>
+            <input class="field-input" id="editTitle" type="text" autocomplete="off" required />
+          </label>
+          <label class="field" id="urlField">
+            <span class="field-label">网址</span>
+            <input class="field-input" id="editUrl" type="text" autocomplete="off" spellcheck="false" />
+          </label>
+          <p class="form-error" id="formError" hidden></p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" id="cancelEditor" type="button">取消</button>
+            <button class="btn btn-primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="../src/favicon.js"></script>
+    <script src="./bookmarks.js"></script>
+  </body>
+</html>

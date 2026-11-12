@@ -10,6 +10,10 @@
       id: 'kuxueyuan',
       label: '酷学院 · 自动看课',
       desc: '静音倍速、防暂停、自动关闭确认弹窗并继续播放',
+      link: {
+        text: '一键直达😎学院',
+        url: 'https://pro.coolcollege.cn/#/course/management',
+      },
       storageKey: 'feat_kuxueyuan',
       match(hostname) {
         const h = (hostname || '').toLowerCase()

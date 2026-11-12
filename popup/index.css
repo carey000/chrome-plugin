@@ -22,6 +22,12 @@ body {
 .wrapper {
   border-radius: 20px;
 }
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
 .title {
   padding-bottom: 2px;
   display: flex;
@@ -29,6 +35,24 @@ body {
   align-items: center;
   color: #404040;
   font-size: 18px;
+}
+.bookmark-btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eee;
+  border-radius: 9px;
+  background: #fafafa;
+  color: blueviolet;
+  cursor: pointer;
+  transition: background-color 0.18s, transform 0.18s;
+}
+.bookmark-btn:hover {
+  background: #f2e9ff;
+  transform: translateY(-1px);
 }
 .subtitle {
   color: #999;
@@ -107,16 +131,20 @@ body {
   transform: translateX(18px);
 }
 
-.jump {
+/* 卡片内的直达入口：跟随所属功能行，不再独立悬浮在列表外 */
+.jump-inline {
   display: inline-block;
-  margin-top: 12px;
-  font-size: 13px;
+  margin-top: 8px;
+  font-size: 12px;
   text-decoration: none;
   font-weight: 600;
   background-color: blueviolet;
   color: #fff;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 7px;
+  padding: 5px 10px;
+}
+.jump-inline:hover {
+  opacity: 0.88;
 }
 
 .tips {

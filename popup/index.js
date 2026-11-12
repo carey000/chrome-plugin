@@ -4,7 +4,6 @@ const FEATURE_CONFIG = window.FEATURE_CONFIG || []
 const flags = {}
 
 const urlMap = {
-  kxy: 'https://pro.coolcollege.cn/#/course/management',
   ToExtensions: `chrome://extensions?id=${chrome.runtime.id}`,
 }
 
@@ -37,6 +36,19 @@ function render() {
         <input type="checkbox" data-id="${f.id}" ${on ? 'checked' : ''} />
         <span class="slider"></span>
       </label>`
+    // 配置里带 link 的功能，把直达按钮放进自己的卡片内（原本独立在列表外面）
+    if (f.link) {
+      const jump = document.createElement('a')
+      jump.className = 'jump-inline'
+      jump.href = f.link.url
+      jump.textContent = f.link.text
+      jump.addEventListener('click', (ev) => {
+        ev.preventDefault()
+        chrome.tabs.create({ url: f.link.url })
+      })
+      const meta = row.querySelector('.feature-meta')
+      ;(meta || row).appendChild(jump)
+    }
     box.appendChild(row)
   })
   box.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
@@ -78,6 +90,15 @@ function bindLinks() {
   })
   const rid = document.getElementById('chrome_runtime_id')
   if (rid) rid.textContent = chrome.runtime.id
+
+  const bm = document.getElementById('openBookmarks')
+  if (bm) {
+    bm.addEventListener('click', () => {
+      const url = chrome.runtime.getURL('bookmarks/bookmarks.html')
+      console.log('[popup] 打开书签管理页:', url)
+      chrome.tabs.create({ url })
+    })
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

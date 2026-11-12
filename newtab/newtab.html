@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>新标签页</title>
+    <link rel="stylesheet" href="./newtab.css" />
+  </head>
+  <body>
+    <div class="page">
+      <!-- 左 nav：功能切换，固定 200px -->
+      <nav class="nav">
+        <div class="nav-brand"><span class="brand-mark"></span></div>
+        <button class="nav-item is-active" data-view="tabs" type="button">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-11Z" fill="none" stroke="currentColor" stroke-width="1.7" />
+            <path d="M4 9.5h16" fill="none" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+          <span>标签管理</span>
+        </button>
+        <button class="nav-item" data-view="history" type="button">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 5v4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+          <span>页面历史</span>
+        </button>
+      </nav>
+
+      <!-- 中：header（搜索框常驻，切到任何 nav 都显示）+ main -->
+      <div class="workspace">
+        <header class="header">
+          <div class="search-area">
+            <div class="search-wrap">
+              <form class="search-box" id="searchForm" autocomplete="off">
+                <button
+                  class="engine-trigger"
+                  id="engineTrigger"
+                  type="button"
+                  aria-label="选择搜索引擎"
+                  aria-expanded="false"
+                  title="当前：百度（点击切换）"
+                >
+                  <span class="engine-trigger-mark" id="engineTriggerMark"></span>
+                  <svg class="engine-caret" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <span class="search-divider"></span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  type="search"
+                  placeholder="在 百度 中搜索"
+                  aria-label="搜索内容"
+                  autocomplete="off"
+                />
+                <button class="search-btn" type="submit">搜索</button>
+              </form>
+
+              <div class="engine-panel" id="enginePanel" hidden>
+                <div class="engine-panel-row" id="enginePanelRow"></div>
+              </div>
+            </div>
+          </div>
+
+          <nav class="header-links">
+            <a class="header-link" id="gmailEntry" href="https://mail.google.com/" target="_blank" rel="noopener noreferrer">Gmail</a>
+            <a class="header-link header-link--accent" id="bookmarksEntry" href="../bookmarks/bookmarks.html" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <path
+                  d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              书签管理
+            </a>
+          </nav>
+        </header>
+
+        <main class="main">
+          <div class="wrapper">
+            <!-- 视图 1：标签管理 -->
+            <section class="view" id="viewTabs">
+              <section class="collections">
+                <div class="collections-head">
+                  <div class="collections-heading">
+                    <h2 class="collections-title">已保存的标签集</h2>
+                    <span class="collections-summary" id="collectionsSummary">0 collections · 0 tabs</span>
+                  </div>
+                  <button class="primary-btn" id="saveTabsBtn" type="button">+ 保存当前标签</button>
+                </div>
+                <div id="collectionsList"></div>
+              </section>
+            </section>
+
+            <!-- 视图 2：页面历史（右侧功能区隐藏） -->
+            <section class="view" id="viewHistory" hidden>
+              <div class="history-head">
+                <div class="collections-heading">
+                  <h2 class="collections-title">页面历史</h2>
+                  <span class="collections-summary" id="historySummary">读取中…</span>
+                </div>
+                <button class="mini-btn" id="historyRefreshBtn" type="button">刷新</button>
+              </div>
+              <div class="history-list" id="historyList"></div>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      <!-- 右：功能区 240px，仅标签管理时显示 -->
+      <aside class="side" id="sidePanel">
+        <section class="open-panel">
+          <div class="open-panel-head">
+            <div>
+              <div class="panel-title">Open Tabs</div>
+              <div class="open-panel-summary" id="openTabsSummary">读取中…</div>
+            </div>
+            <button class="icon-btn" id="refreshTabsBtn" type="button" title="刷新">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="open-tabs" id="openTabsList"></div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- 添加搜索引擎弹窗：自定义输入框在最顶上 -->
+    <div class="modal-mask" id="engineModal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="engineModalTitle">
+        <div class="modal-head">
+          <div>
+            <h2 class="modal-title" id="engineModalTitle">添加搜索引擎</h2>
+            <p class="modal-sub" id="engineModalSub">最多添加8种，已添加4种</p>
+          </div>
+          <button class="modal-close" id="engineModalClose" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="custom-engine">
+            <h3 class="custom-engine-title">自定义搜索引擎</h3>
+            <form class="custom-engine-form" id="customEngineForm" autocomplete="off">
+              <span class="custom-engine-mark">+</span>
+              <input
+                class="custom-engine-input"
+                id="customEngineUrl"
+                type="text"
+                placeholder="请输入搜索地址，用%s代替关键词，例：https://www.baidu.com/s?wd=%s"
+                aria-label="自定义搜索地址"
+              />
+              <button class="custom-engine-add" type="submit">添加</button>
+            </form>
+            <p class="custom-engine-error" id="customEngineError" hidden></p>
+          </div>
+          <div class="engine-grid" id="engineGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../src/favicon.js"></script>
+    <script src="./common.js"></script>
+    <script src="./engines.js"></script>
+    <script src="./search.js"></script>
+    <script src="./sessions.js"></script>
+    <script src="./history.js"></script>
+    <script src="./newtab.js"></script>
+  </body>
+</html>
