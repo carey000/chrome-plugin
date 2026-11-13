@@ -8,6 +8,25 @@ let index = new Map()
 let currentId = ROOT_ID
 let editingId = null
 
+// ---------- 链接可访问性检测 ----------
+// 只检测视口内卡片；异步、限量并发、带超时与缓存，不阻塞 render()。
+// 只对明确的失效码（404 / 410 / 5xx）标记；网络/CORS 异常不误报（跨域失败原因不可判定）。
+const LINK_HTTP = /^https?:\/\//i
+const LINK_TIMEOUT = 6000
+const LINK_CONCURRENCY = 3
+const linkStatus = new Map() // url -> status（仅记录已判定的）
+let linkObserver = null
+let linkQueue = []
+let linkRunning = 0
+
+// 视图：grid（卡片，默认）/ list（列表）。偏好存 localStorage，扩展页内可用。
+let viewMode = 'grid'
+try {
+  viewMode = localStorage.getItem('bm_view_mode') === 'list' ? 'list' : 'grid'
+} catch (error) {
+  viewMode = 'grid'
+}
+
 // Chrome API 包装成 Promise，方便 .then() 链式调用
 function getTree() {
   return new Promise((resolve, reject) => {
@@ -124,6 +143,15 @@ function makeCard(node, isFolder) {
   card.tabIndex = 0
   const info = isFolder ? null : siteInfo(node.url)
 
+  // 只对 http(s) 书签准备可访问性角标；文件夹、chrome://、file:// 一律不检测
+  if (!isFolder && LINK_HTTP.test(node.url || '')) {
+    card._linkUrl = node.url
+    const badge = el('span', 'card-status')
+    badge.hidden = true
+    card.appendChild(badge)
+    card._linkBadge = badge
+  }
+
   const thumb = el('div', 'thumb')
   if (isFolder) {
     thumb.classList.add('thumb--folder')
@@ -163,6 +191,117 @@ function makeCard(node, isFolder) {
   return card
 }
 
+// 只有这些状态码能明确说明「链接失效」；401/403/405/429 多为反爬、限流或不支持 HEAD，不算失效
+function isDeadStatus(status) {
+  return status === 404 || status === 410 || (status >= 500 && status <= 599)
+}
+
+// 只给明确失效的卡片打角标；网络/CORS/超时原因不可判定，不误报
+function applyLinkStatus(card, status) {
+  const badge = card._linkBadge
+  if (!badge || !isDeadStatus(status)) return
+  badge.textContent = status + (status >= 500 ? ' 服务异常' : ' 无法访问')
+  badge.title = 'HTTP ' + status + '（检测时返回）· 点击仍会打开书签'
+  badge.hidden = false
+  if (card.classList && card.classList.add) card.classList.add('card--dead')
+}
+
+function requestStatus(url, method) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null
+  const timer = setTimeout(() => {
+    if (controller) controller.abort()
+  }, LINK_TIMEOUT)
+  const options = { method, redirect: 'follow', cache: 'no-store' }
+  if (controller) options.signal = controller.signal
+  return fetch(url, options).then(
+    (response) => {
+      clearTimeout(timer)
+      // opaque 响应拿不到真实 status，返回 0 表示「无法判定」
+      return response.type === 'opaque' ? 0 : response.status
+    },
+    () => {
+      clearTimeout(timer)
+      return 0
+    }
+  )
+}
+
+function probeLink(card) {
+  const url = card._linkUrl
+  if (linkStatus.has(url)) {
+    applyLinkStatus(card, linkStatus.get(url))
+    return Promise.resolve()
+  }
+  return requestStatus(url, 'HEAD')
+    .then((status) => {
+      // 站点不支持 HEAD / 拒绝探测时，用 GET 复核一次，避免把正常站点误标失效
+      if (status === 405 || status === 501 || status === 403) return requestStatus(url, 'GET')
+      return status
+    })
+    .then((status) => {
+      linkStatus.set(url, status)
+      applyLinkStatus(card, status)
+      console.log('[bookmarks] 检测结果:', status || '无法判定', url)
+    })
+}
+
+function pumpLinkQueue() {
+  while (linkRunning < LINK_CONCURRENCY && linkQueue.length) {
+    const card = linkQueue.shift()
+    linkRunning += 1
+    probeLink(card).then(() => {
+      linkRunning -= 1
+      pumpLinkQueue()
+    })
+  }
+}
+
+// IntersectionObserver 只把进入视口的卡片加入检测队列；render 结束后异步调度，不阻塞首屏
+function scheduleLinkCheck() {
+  if (linkObserver) linkObserver.disconnect()
+  linkQueue = []
+  const grid = document.getElementById('grid')
+  const all = grid.querySelectorAll ? Array.prototype.slice.call(grid.querySelectorAll('.card')) : []
+  const cards = all.filter((card) => card._linkUrl)
+  cards.forEach((card) => {
+    if (linkStatus.has(card._linkUrl)) applyLinkStatus(card, linkStatus.get(card._linkUrl))
+  })
+  if (typeof IntersectionObserver !== 'function') {
+    console.log('[bookmarks] 当前环境无 IntersectionObserver，跳过可访问性检测')
+    return
+  }
+  const pending = cards.filter((card) => !linkStatus.has(card._linkUrl))
+  if (!pending.length) return
+  linkObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return
+      linkObserver.unobserve(entry.target)
+      linkQueue.push(entry.target)
+    })
+    pumpLinkQueue()
+  })
+  pending.forEach((card) => linkObserver.observe(card))
+}
+
+function setViewMode(mode) {
+  viewMode = mode === 'list' ? 'list' : 'grid'
+  const grid = document.getElementById('grid')
+  if (grid.classList && grid.classList.toggle) grid.classList.toggle('grid--list', viewMode === 'list')
+  ;['viewList', 'viewGrid'].forEach((id) => {
+    const btn = document.getElementById(id)
+    if (!btn) return
+    const active = (id === 'viewList') === (viewMode === 'list')
+    if (btn.classList && btn.classList.toggle) btn.classList.toggle('is-active', active)
+    btn.setAttribute('aria-pressed', String(active))
+  })
+  try {
+    localStorage.setItem('bm_view_mode', viewMode)
+  } catch (error) {
+    console.warn('[bookmarks] 视图偏好无法保存:', error.message)
+  }
+  console.log('[bookmarks] 切换视图:', viewMode)
+}
+
 function render() {
   const grid = document.getElementById('grid')
   const crumbs = document.getElementById('crumbs')
@@ -187,10 +326,14 @@ function render() {
 
   const children = (node && node.children) || []
   children.forEach((child) => grid.appendChild(makeCard(child, !child.url)))
+  if (grid.classList && grid.classList.toggle) grid.classList.toggle('grid--list', viewMode === 'list')
 
   const folders = children.filter((child) => !child.url).length
   count.textContent = folders + ' 个文件夹 · ' + (children.length - folders) + ' 个书签'
   empty.hidden = children.length > 0
+
+  // 异步、不阻塞：render 已同步完成，检测排到下一个任务
+  setTimeout(scheduleLinkCheck, 0)
 }
 
 function openEditor(node) {
@@ -403,6 +546,10 @@ function showFatal(message) {
 }
 
 function init() {
+  document.getElementById('viewList').addEventListener('click', () => setViewMode('list'))
+  document.getElementById('viewGrid').addEventListener('click', () => setViewMode('grid'))
+  setViewMode(viewMode)
+
   // 标签组区块独立于书签权限：即使 chrome.bookmarks 不可用也照常渲染
   document.getElementById('refreshGroups').addEventListener('click', scheduleGroupsRefresh)
   watchGroups()

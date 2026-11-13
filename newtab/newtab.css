@@ -11,10 +11,7 @@
   --muted: #86868b;
   --line: rgba(0, 0, 0, 0.07);
   --accent: #0071e3;
-  --baidu: #2932e1;
   --danger: #e5484d;
-  --tab-card-favicon-size: 20px;
-  --main-radius: 24px;
 }
 
 html,
@@ -73,20 +70,8 @@ button:disabled {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 26px 14px;
+  padding: 5vh 14px 26px;
   background: transparent;
-}
-
-.nav-brand {
-  padding: 0 12px 26px;
-}
-
-.brand-mark {
-  display: block;
-  width: 20px;
-  height: 20px;
-  border-radius: 7px;
-  background: linear-gradient(145deg, #4f9dff, #0071e3);
 }
 
 .nav-item {
@@ -113,6 +98,64 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+/* nav 顶部：展开 / 折叠按钮。折叠后收窄到 60px 只留图标，按钮本身始终可见 */
+.nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 4px;
+  margin-bottom: 18px;
+}
+
+.nav-toggle {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #6b6b70;
+  cursor: pointer;
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+}
+
+.nav-toggle svg {
+  transition: transform 0.18s;
+}
+
+.nav.is-collapsed {
+  flex: 0 0 60px;
+  width: 60px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.nav.is-collapsed .nav-top {
+  justify-content: center;
+  padding: 0;
+}
+
+.nav.is-collapsed .nav-toggle svg {
+  transform: rotate(180deg);
+}
+
+.nav.is-collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.nav.is-collapsed .nav-item span {
+  display: none;
+}
+
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.5);
 }
@@ -136,9 +179,10 @@ button:disabled {
 .header {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 22px 28px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 18px 28px 20px;
   background: transparent;
   border: 0;
   position: relative;
@@ -146,10 +190,36 @@ button:disabled {
 }
 
 .header-links {
+  align-self: flex-end;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.header-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+/* 页面底色为浅色 #f0ede8，故大时间用深色文字而非截图中的白色 */
+.header-clock {
+  font-size: 64px;
+  line-height: 1.05;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-calendar {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b6b70;
+  letter-spacing: 0.02em;
 }
 
 .header-link {
@@ -180,12 +250,20 @@ button:disabled {
 
 /* main：半透明底 + 渐变 wrapper（上圆角 24px，下方贴边） */
 .main {
+  /* 就近变量：只被 .main 与其子级 .wrapper 使用，不放 :root */
+  --main-radius: 24px;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: #fafafa66;
   border-radius: var(--main-radius) var(--main-radius) 0 0;
+}
+
+/* 右侧功能区隐藏时（网址导航 / 页面历史），main 的右边与底部都不贴边缘 */
+.page:has(.side[hidden]) .main {
+  margin-right: 12px;
+  margin-bottom: 12px;
 }
 
 .wrapper {
@@ -378,26 +456,38 @@ button:disabled {
   color: var(--muted);
 }
 
-/* 关闭按钮：默认隐藏，hover 或键盘聚焦时才出现 */
+/* 关闭按钮：满高正方形，hover 或键盘聚焦时才出现；左侧渐变虚化衔接标题 */
 .open-tab-del {
   position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: auto;
+  aspect-ratio: 1 / 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: transparent;
+  border-radius: 0 12px 12px 0;
+  background: var(--surface);
   color: #b0b0b5;
   font-size: 15px;
   line-height: 1;
   opacity: 0;
   transition: opacity 0.16s, color 0.16s, background-color 0.16s;
+}
+
+/* 从按钮左边缘向外 28px 做渐入，标题文字在此淡出，不出现硬切边 */
+.open-tab-del::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 100%;
+  width: 28px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--surface));
+  pointer-events: none;
 }
 
 .open-tab:hover .open-tab-del,
@@ -406,10 +496,7 @@ button:disabled {
   opacity: 1;
 }
 
-.open-tab-del:hover {
-  color: var(--danger);
-  background: rgba(229, 72, 77, 0.08);
-}
+/* hover × 时不再单独高亮：整行沿用 .open-tab:hover 的阴影 + 抬升，视觉保持一致 */
 
 /* 共享 favicon：有图显示图，缺图或加载失败显示同尺寸灰色圆角矩形 */
 .favicon {
@@ -460,11 +547,11 @@ button:disabled {
 
 .search-box {
   width: 100%;
-  height: 58px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 8px 0 8px;
+  padding: 0 20px 0 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -545,32 +632,13 @@ button:disabled {
 
 .search-input::placeholder {
   color: #b0b0b5;
-}
-
-.search-btn {
-  flex: 0 0 auto;
-  height: 44px;
-  padding: 0 26px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--baidu);
-  color: #fff;
   font-size: 14px;
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.search-btn:hover {
-  opacity: 0.9;
-}
-
-.search-btn:active {
-  transform: scale(0.97);
 }
 
 /* 引擎展开面板：默认 hidden，点击左侧图标才出现 */
 .engine-panel {
   position: absolute;
-  top: 70px;
+  top: 60px;
   left: 0;
   right: 0;
   z-index: 15;
@@ -883,24 +951,6 @@ button:disabled {
   color: var(--muted);
 }
 
-.primary-btn {
-  flex: 0 0 auto;
-  height: 34px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: #e5484d;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.primary-btn:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
 .collection + .collection {
   margin-top: 24px;
   padding-top: 20px;
@@ -994,6 +1044,9 @@ button:disabled {
 }
 
 .tab-card {
+  /* 就近变量：只被本卡片及其子元素使用 */
+  --tab-card-favicon-size: 20px;
+  --tab-card-del-size: 24px;
   position: relative;
   aspect-ratio: 16 / 9;
   display: flex;
@@ -1046,16 +1099,16 @@ button:disabled {
   position: absolute;
   top: 6px;
   right: 8px;
-  width: 20px;
-  height: 20px;
+  width: var(--tab-card-del-size);
+  height: var(--tab-card-del-size);
   border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #b0b0b5;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.05);
+  color: #8e8e93;
   font-size: 16px;
   line-height: 1;
   opacity: 0;
-  transition: opacity 0.18s, color 0.18s;
+  transition: opacity 0.18s, color 0.18s, background-color 0.18s;
 }
 
 .tab-card:hover .tab-card-del,
@@ -1186,30 +1239,239 @@ button:disabled {
   }
 }
 
+/* 移动端：三栏改纵向单栏，nav 变顶部横条，右栏移到内容下方（功能全部保留） */
 @media (max-width: 560px) {
+  .page {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* nav：顶部横向条。折叠按钮仍在，折叠 = 收起整排导航 */
   .nav {
-    flex-basis: 60px;
-    width: 60px;
-    padding: 18px 8px;
+    flex: 0 0 auto;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
   }
-  .nav-brand {
-    padding: 0 12px 20px;
-  }
-  .nav-item {
-    justify-content: center;
+  .nav-top {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    margin-bottom: 0;
     padding: 0;
   }
+  .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 36px;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+  .nav-item + .nav-item {
+    margin-top: 0;
+  }
   .nav-item span {
+    display: inline;
+    white-space: nowrap;
+  }
+  .nav.is-collapsed {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 10px 12px;
+  }
+  .nav.is-collapsed .nav-top {
+    justify-content: flex-start;
+  }
+  .nav.is-collapsed .nav-item {
     display: none;
   }
-  .search-btn {
-    padding: 0 16px;
+
+  /* workspace 占满宽度；header 强制不换行，避免 column + wrap 把三行挤成多列 */
+  .workspace {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+  .header {
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 14px 14px 16px;
+  }
+  .header-links {
+    align-self: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .header-link {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .header-clock {
+    font-size: 44px;
+  }
+  .header-calendar {
+    font-size: 12px;
   }
   .wrapper {
-    padding: 18px 14px 24px;
+    padding: 16px 14px 24px;
   }
   .collections-head {
     flex-direction: column;
     align-items: flex-start;
   }
+  .collections-heading {
+    gap: 6px;
+  }
+
+  /* 右功能区不再横向挤占 210px，改为内容下方的全宽区块 */
+  .side {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 16px 14px 28px;
+  }
+  .open-tabs {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* ---------- 视图 3：网址导航（顶部横向分类 + 图标网格） ---------- */
+.sites-head {
+  margin-bottom: 18px;
+}
+
+.site-cat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.site-cat {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #6b6b70;
+  font-size: 12px;
+  transition: background-color 0.18s, color 0.18s, box-shadow 0.18s;
+}
+
+.site-cat:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.site-cat.is-active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.sites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 18px 10px;
+  align-content: start;
+}
+
+.site-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px 4px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  transition: background-color 0.18s, transform 0.18s;
+}
+
+.site-tile:hover {
+  background: rgba(255, 255, 255, 0.65);
+  transform: translateY(-2px);
+}
+
+.site-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* 真实 favicon 节点带 .favicon 类，覆盖其默认灰底；字母块沿用 .tone-N 配色 */
+.favicon.site-icon {
+  background: #fff;
+}
+
+.site-icon .favicon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.site-name,
+.site-host {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-name {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.site-host {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.sites-empty {
+  grid-column: 1 / -1;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- 拖拽：左侧集合卡片 / 右侧真实标签 ---------- */
+.tab-card[draggable="true"],
+.open-tab[draggable="true"] {
+  cursor: grab;
+}
+
+.tab-card.is-dragging,
+.open-tab.is-dragging {
+  opacity: 0.4;
+}
+
+.tab-card.is-drop-target,
+.open-tab.is-drop-target {
+  outline: 2px dashed rgba(0, 113, 227, 0.55);
+  outline-offset: 2px;
+}
+
+.collection.is-drop-target > .collection-head,
+.open-window.is-drop-target > .open-window-head {
+  background: rgba(0, 113, 227, 0.07);
+  border-radius: 8px;
 }

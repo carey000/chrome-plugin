@@ -184,6 +184,12 @@
 
   function init() {
     document.getElementById('searchForm').addEventListener('submit', onSubmit)
+    // 删掉提交按钮后显式保证 Enter 提交：preventDefault 同时挡住 form 的隐式提交，不会触发两次
+    document.getElementById('searchInput').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      onSubmit(event)
+    })
     document.getElementById('engineTrigger').addEventListener('click', (event) => {
       event.stopPropagation()
       togglePanel()

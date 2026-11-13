@@ -9,9 +9,28 @@
   <body>
     <div class="page">
       <!-- 左 nav：功能切换，固定 200px -->
-      <nav class="nav">
-        <div class="nav-brand"><span class="brand-mark"></span></div>
-        <button class="nav-item is-active" data-view="tabs" type="button">
+      <nav class="nav" id="navPanel">
+        <div class="nav-top">
+          <button
+            class="nav-toggle"
+            id="navToggle"
+            type="button"
+            aria-label="折叠侧边栏"
+            aria-expanded="true"
+            title="折叠侧边栏"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="m14 7-5 5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <button class="nav-item is-active" data-view="sites" type="button">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+          </svg>
+          <span>网址导航</span>
+        </button>
+        <button class="nav-item" data-view="tabs" type="button">
           <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
             <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-11Z" fill="none" stroke="currentColor" stroke-width="1.7" />
             <path d="M4 9.5h16" fill="none" stroke="currentColor" stroke-width="1.7" />
@@ -30,6 +49,31 @@
       <!-- 中：header（搜索框常驻，切到任何 nav 都显示）+ main -->
       <div class="workspace">
         <header class="header">
+          <!-- 第一行：外部入口 -->
+          <nav class="header-links">
+            <a class="header-link" id="gmailEntry" href="https://mail.google.com/" target="_blank" rel="noopener noreferrer">Gmail</a>
+            <a class="header-link" id="itabEntry" href="https://go.itab.link/" target="_blank" rel="noopener noreferrer">iTab</a>
+            <a class="header-link header-link--accent" id="bookmarksEntry" href="../bookmarks/bookmarks.html" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <path
+                  d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              书签管理
+            </a>
+          </nav>
+
+          <!-- 第二行：大号时间 + 月日 / 星期 / 农历（newtab.js 本地计算，零网络请求） -->
+          <div class="header-date">
+            <div class="header-clock" id="headerClock"></div>
+            <div class="header-calendar" id="headerDate"></div>
+          </div>
+
+          <!-- 第三行：搜索框，删掉提交按钮后靠 Enter 原生提交 form -->
           <div class="search-area">
             <div class="search-wrap">
               <form class="search-box" id="searchForm" autocomplete="off">
@@ -55,7 +99,6 @@
                   aria-label="搜索内容"
                   autocomplete="off"
                 />
-                <button class="search-btn" type="submit">搜索</button>
               </form>
 
               <div class="engine-panel" id="enginePanel" hidden>
@@ -63,35 +106,18 @@
               </div>
             </div>
           </div>
-
-          <nav class="header-links">
-            <a class="header-link" id="gmailEntry" href="https://mail.google.com/" target="_blank" rel="noopener noreferrer">Gmail</a>
-            <a class="header-link header-link--accent" id="bookmarksEntry" href="../bookmarks/bookmarks.html" target="_blank" rel="noopener noreferrer">
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <path
-                  d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              书签管理
-            </a>
-          </nav>
         </header>
 
         <main class="main">
           <div class="wrapper">
             <!-- 视图 1：标签管理 -->
-            <section class="view" id="viewTabs">
+            <section class="view" id="viewTabs" hidden>
               <section class="collections">
                 <div class="collections-head">
                   <div class="collections-heading">
                     <h2 class="collections-title">已保存的标签集</h2>
                     <span class="collections-summary" id="collectionsSummary">0 collections · 0 tabs</span>
                   </div>
-                  <button class="primary-btn" id="saveTabsBtn" type="button">+ 保存当前标签</button>
                 </div>
                 <div id="collectionsList"></div>
               </section>
@@ -108,12 +134,24 @@
               </div>
               <div class="history-list" id="historyList"></div>
             </section>
+
+            <!-- 视图 3：网址导航（分类在顶部横向切换，右侧功能区隐藏） -->
+            <section class="view" id="viewSites">
+              <div class="sites-head">
+                <div class="collections-heading">
+                  <h2 class="collections-title">网址导航</h2>
+                  <span class="collections-summary" id="sitesSummary">读取中…</span>
+                </div>
+              </div>
+              <div class="site-cat-bar" id="sitesCategoryBar"></div>
+              <div class="sites-grid" id="sitesGrid"></div>
+            </section>
           </div>
         </main>
       </div>
 
-      <!-- 右：功能区 240px，仅标签管理时显示 -->
-      <aside class="side" id="sidePanel">
+      <!-- 右：功能区 240px，仅标签管理时显示（默认网址导航，故初始隐藏） -->
+      <aside class="side" id="sidePanel" hidden>
         <section class="open-panel">
           <div class="open-panel-head">
             <div>
@@ -173,5 +211,8 @@
     <script src="./sessions.js"></script>
     <script src="./history.js"></script>
     <script src="./newtab.js"></script>
+    <!-- 网址导航：自初始化，追加在末尾，不改变上面 7 个脚本的相对顺序 -->
+    <script src="./sites-data.js"></script>
+    <script src="./sites.js"></script>
   </body>
 </html>

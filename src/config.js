@@ -42,6 +42,17 @@
         return hostname === 'kaoshibao.com' || hostname.endsWith('.kaoshibao.com')
       },
     },
+    {
+      id: 'unclip',
+      label: '解除复制限制',
+      desc: '恢复网页原生选中 / 复制 / 右键，绕开站点对 copy、contextmenu、组合键的劫持（飞书等）',
+      storageKey: 'feat_unclip',
+      // standalone：由 document_start 的 unclip-bridge/main 自行接管，不走 FeatureManager 装配
+      standalone: true,
+      match() {
+        return true
+      },
+    },
   ]
 
   if (typeof window !== 'undefined') window.FEATURE_CONFIG = FEATURE_CONFIG

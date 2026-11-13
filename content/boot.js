@@ -11,6 +11,8 @@
   }
 
   const handlers = AB.FEATURE_CONFIG.map((f) => {
+    // standalone 功能由独立的 document_start 注入层接管，不参与站点装配
+    if (f.standalone) return null
     const Ctor = AB.sites[f.id]
     if (!Ctor) {
       console.warn('[扩展] 未注册的处理类:', f.id)
