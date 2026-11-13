@@ -7,6 +7,8 @@
 
   const KEY = 'nt_collections'
   const RESTORABLE = /^(https?|file):\/\//i
+  // 左侧集合可接收的拖拽来源：集合内卡片排序、右侧 Open Tabs 加入
+  const COLLECTION_DROPS = ['saved-tab', 'open-tab']
 
   // source 只用于「刷新」按钮定位来源窗口，不再作为去重依据
   function windowSource(windowId) {
@@ -53,7 +55,8 @@
     console.log('[newtab][sessions] dragstart:', payload.kind, payload)
   }
 
-  function readDrag(event, kind) {
+  // kind 可传单个字符串或数组：左侧集合同时接收 saved-tab 与 open-tab 两种来源
+  function readDrag(event, kinds) {
     let payload = dragState
     if (!payload && event.dataTransfer && event.dataTransfer.getData) {
       try {
@@ -62,7 +65,8 @@
         payload = null
       }
     }
-    return payload && payload.kind === kind ? payload : null
+    const allowed = Array.isArray(kinds) ? kinds : [kinds]
+    return payload && allowed.indexOf(payload.kind) !== -1 ? payload : null
   }
 
   function clearDragMarks() {
@@ -191,6 +195,8 @@
         tabId: tab.id,
         windowId: tab.windowId,
         index: tab.index,
+        // 带上完整条目，拖到左侧集合时无需再查 chrome.tabs
+        entry: toEntry(tab),
       })
     })
     row.addEventListener('dragend', clearDragMarks)
@@ -420,12 +426,14 @@
       startDrag(event, { kind: 'saved-tab', collectionId: collection.id, index })
     })
     card.addEventListener('dragend', clearDragMarks)
-    card.addEventListener('dragover', (event) => allowDrop(event, card, 'saved-tab'))
+    card.addEventListener('dragover', (event) => allowDrop(event, card, COLLECTION_DROPS))
     card.addEventListener('dragleave', () => card.classList.remove('is-drop-target'))
     card.addEventListener('drop', (event) => {
-      const payload = readDrag(event, 'saved-tab')
+      const payload = readDrag(event, COLLECTION_DROPS)
       if (!payload) return
       event.preventDefault()
+      // open-tab 交给 section 冒泡处理（追加到集合末尾），这里只处理集合内卡片排序
+      if (payload.kind !== 'saved-tab') return
       event.stopPropagation()
       clearDragMarks()
       moveSavedTab(payload, collection, index)
@@ -450,6 +458,21 @@
       '→ 位置', at
     )
     persist().then(renderCollections)
+  }
+
+  // 右侧 Open Tabs 拖进集合：只追加，不移动 / 关闭真实标签页；同 URL 已存在则什么都不做
+  function addOpenTabToCollection(entry, collection) {
+    if (!entry || !isRestorable(entry.url)) {
+      console.log('[newtab][sessions] 该标签不可加入集合:', entry && entry.url)
+      return Promise.resolve()
+    }
+    if (collection.tabs.some((tab) => tab.url === entry.url)) {
+      console.log('[newtab][sessions] 集合中已存在，本次不添加:', entry.url)
+      return Promise.resolve()
+    }
+    collection.tabs.push(entry)
+    console.log('[newtab][sessions] Open Tabs 加入集合:', collection.name, '←', entry.url)
+    return persist().then(renderCollections)
   }
 
   function makeHead(collection) {
@@ -602,15 +625,17 @@
         if (!collection.tabs.length) grid.appendChild(NT.el('div', 'collection-empty', '该集合没有标签'))
         section.appendChild(grid)
       }
-      // 集合空白处 / 折叠状态的整行也能接收：追加到末尾
-      section.addEventListener('dragover', (event) => allowDrop(event, section, 'saved-tab'))
+      // 集合空白处 / 折叠状态的整行也能接收：
+      // saved-tab 追加到末尾；open-tab 去重后加入集合
+      section.addEventListener('dragover', (event) => allowDrop(event, section, COLLECTION_DROPS))
       section.addEventListener('dragleave', () => section.classList.remove('is-drop-target'))
       section.addEventListener('drop', (event) => {
-        const payload = readDrag(event, 'saved-tab')
+        const payload = readDrag(event, COLLECTION_DROPS)
         if (!payload) return
         event.preventDefault()
         clearDragMarks()
-        moveSavedTab(payload, collection, collection.tabs.length)
+        if (payload.kind === 'open-tab') addOpenTabToCollection(payload.entry, collection)
+        else moveSavedTab(payload, collection, collection.tabs.length)
       })
       box.appendChild(section)
     })
@@ -640,6 +665,7 @@
     saveCollection,
     moveSavedTab,
     moveOpenTab,
+    addOpenTabToCollection,
     get collections() { return collections },
   }
 })(window.NT)

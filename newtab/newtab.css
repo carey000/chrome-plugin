@@ -1103,7 +1103,8 @@ button:disabled {
   height: var(--tab-card-del-size);
   border: 0;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.05);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   color: #8e8e93;
   font-size: 16px;
   line-height: 1;
@@ -1327,6 +1328,9 @@ button:disabled {
   .collections-heading {
     gap: 6px;
   }
+  .sites-head {
+    flex-wrap: wrap;
+  }
 
   /* 右功能区不再横向挤占 210px，改为内容下方的全宽区块 */
   .side {
@@ -1342,7 +1346,48 @@ button:disabled {
 
 /* ---------- 视图 3：网址导航（顶部横向分类 + 图标网格） ---------- */
 .sites-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 18px;
+}
+
+/* 列表 / 卡片视图切换（与书签页 .view-switch 同款） */
+.view-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.view-btn {
+  width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.view-btn:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.view-btn.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .site-cat-bar {
@@ -1451,6 +1496,55 @@ button:disabled {
   text-align: center;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* 列表视图：单列，图标缩小，域名右对齐 */
+.sites-grid--list {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.sites-grid--list .site-tile {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  text-align: left;
+}
+
+.sites-grid--list .site-tile:hover {
+  background: var(--surface);
+  transform: none;
+}
+
+.sites-grid--list .site-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.sites-grid--list .site-name {
+  flex: 0 1 auto;
+  font-size: 13px;
+}
+
+.sites-grid--list .site-host {
+  flex: 1;
+  text-align: right;
+}
+
+/* 网址待补：不猜测域名，条目可见但不可跳转 */
+.site-tile--pending {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.site-tile--pending:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* ---------- 拖拽：左侧集合卡片 / 右侧真实标签 ---------- */

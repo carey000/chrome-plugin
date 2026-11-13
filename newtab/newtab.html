@@ -142,6 +142,18 @@
                   <h2 class="collections-title">网址导航</h2>
                   <span class="collections-summary" id="sitesSummary">读取中…</span>
                 </div>
+                <div class="view-switch" role="group" aria-label="视图切换">
+                  <button class="view-btn" id="sitesViewList" type="button" title="列表视图" aria-label="列表视图" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                      <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                  <button class="view-btn is-active" id="sitesViewGrid" type="button" title="卡片视图" aria-label="卡片视图" aria-pressed="true">
+                    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                      <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div class="site-cat-bar" id="sitesCategoryBar"></div>
               <div class="sites-grid" id="sitesGrid"></div>
