@@ -544,6 +544,18 @@ body {
   background: var(--surface);
 }
 
+/* 长网址：三行 textarea，软折行显示更多内容 */
+.field-textarea {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 78px;
+  padding: 9px 12px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+  word-break: break-all;
+}
+
 .form-error {
   font-size: 12px;
   color: #d70015;

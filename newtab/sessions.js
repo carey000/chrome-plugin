@@ -31,10 +31,18 @@
     '<path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" ' +
     'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
+  const HISTORY_LIMIT = 50
+  const undoStack = []
+  const redoStack = []
+
   let collections = []
   let editingId = null
+  let editContext = null
   let refreshTimer = null
   let dragState = null
+  let confirmPop = null
+  let confirmAnchor = null
+  let confirmAction = null
   const collapsedWindows = new Set()
   const collapsedCollections = new Set()
 
@@ -109,6 +117,147 @@
     return NT.storageSet({ [KEY]: collections })
   }
 
+  // ---- 撤销 / 反撤销：修改前压快照，Ctrl+Z / Ctrl+Shift+Z 前后切换 ----
+  function snapshot() {
+    return JSON.parse(JSON.stringify(collections))
+  }
+
+  function pushHistory() {
+    undoStack.push(snapshot())
+    if (undoStack.length > HISTORY_LIMIT) undoStack.shift()
+    redoStack.length = 0
+    console.log('[newtab][sessions] 记录快照, undo 深度:', undoStack.length)
+  }
+
+  function applyHistory(from, to, label) {
+    if (!from.length) {
+      console.log('[newtab][sessions] 没有可' + label + '的操作')
+      return Promise.resolve()
+    }
+    // 撤销会整批替换 collections，正在编辑的旧对象引用会失效，先关掉弹窗
+    closeTabEditor()
+    to.push(snapshot())
+    collections = from.pop()
+    return persist().then(() => {
+      renderCollections()
+      console.log('[newtab][sessions] ' + label + ': undo/redo =', undoStack.length, redoStack.length)
+    })
+  }
+
+  function undo() {
+    return applyHistory(undoStack, redoStack, '撤销')
+  }
+
+  function redo() {
+    return applyHistory(redoStack, undoStack, '反撤销')
+  }
+
+  // ---- 集合头操作的按钮下方确认气泡：单例挂 body，点确认才执行 ----
+  function ensureConfirmPop() {
+    if (confirmPop) return confirmPop
+    const pop = NT.el('div', 'confirm-pop')
+    pop.hidden = true
+    const text = NT.el('p', 'confirm-pop-text')
+    const actions = NT.el('div', 'confirm-pop-actions')
+    const cancel = NT.el('button', 'mini-btn', '取消')
+    cancel.type = 'button'
+    cancel.addEventListener('click', (event) => {
+      if (event.stopPropagation) event.stopPropagation()
+      closeConfirm()
+    })
+    const ok = NT.el('button', 'mini-btn mini-btn--primary', '确认')
+    ok.type = 'button'
+    ok.addEventListener('click', (event) => {
+      if (event.stopPropagation) event.stopPropagation()
+      const action = confirmAction
+      closeConfirm()
+      if (action) action()
+    })
+    actions.appendChild(cancel)
+    actions.appendChild(ok)
+    pop.appendChild(text)
+    pop.appendChild(actions)
+    pop._text = text
+    pop._ok = ok
+    document.body.appendChild(pop)
+    confirmPop = pop
+    return pop
+  }
+
+  function closeConfirm() {
+    if (!confirmPop) return
+    confirmPop.hidden = true
+    confirmAnchor = null
+    confirmAction = null
+  }
+
+  function askConfirm(anchor, message, action, danger) {
+    const pop = ensureConfirmPop()
+    // 再点同一个按钮 = 收起，不执行
+    if (confirmAnchor === anchor && !pop.hidden) {
+      closeConfirm()
+      return
+    }
+    closeConfirm()
+    confirmAnchor = anchor
+    confirmAction = action
+    pop._text.textContent = message
+    pop._ok.className = 'mini-btn ' + (danger ? 'mini-btn--danger' : 'mini-btn--primary')
+    pop._ok.textContent = danger ? '确认删除' : '确认'
+    pop.hidden = false
+    const rect =
+      typeof anchor.getBoundingClientRect === 'function'
+        ? anchor.getBoundingClientRect()
+        : { left: 0, right: 0, bottom: 0 }
+    // 以按钮右边为基准：气泡右边缘与按钮右边缘对齐；靠近视口边缘时夹住不溢出
+    const width = pop.offsetWidth || 240
+    const vw = window.innerWidth || 1280
+    const anchorRight = rect.right || (rect.left || 0) + width
+    const right = Math.min(anchorRight, vw - 8)
+    const left = Math.max(8, right - width)
+    pop.setAttribute('style', 'left:' + left + 'px;top:' + ((rect.bottom || 0) + 6) + 'px')
+  }
+
+  function bindConfirmDismiss() {
+    document.addEventListener('click', (event) => {
+      if (!confirmPop || confirmPop.hidden) return
+      const target = event.target
+      // icon-btn 里是 <svg>/<path>，点击的 target 常是按钮的子节点；
+      // 只比 target === confirmAnchor 会在同一次点击冒泡里把刚打开的气泡立刻关掉
+      if (
+        target === confirmAnchor ||
+        (confirmAnchor && confirmAnchor.contains && confirmAnchor.contains(target))
+      ) return
+      if (confirmPop.contains && confirmPop.contains(target)) return
+      closeConfirm()
+    })
+  }
+
+  function bindKeydown() {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && confirmPop && !confirmPop.hidden) {
+        closeConfirm()
+        return
+      }
+      const modal = document.getElementById('tabEditModal')
+      if (event.key === 'Escape' && modal && !modal.hidden) {
+        closeTabEditor()
+        return
+      }
+      if (!(event.ctrlKey || event.metaKey)) return
+      if (String(event.key || '').toLowerCase() !== 'z') return
+      // 输入框里让浏览器原生撤销生效，不劫持
+      const t = event.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      // 只在标签管理视图响应，避免在网址导航 / 页面历史误触
+      const view = document.getElementById('viewTabs')
+      if (view && view.hidden) return
+      if (event.preventDefault) event.preventDefault()
+      if (event.shiftKey) redo()
+      else undo()
+    })
+  }
+
   // URL 集合忽略顺序比较：排序后逐项比对，长度不同直接不算重复
   function sameUrls(a, b) {
     if (a.length !== b.length) return false
@@ -128,11 +277,13 @@
         console.log('[newtab][sessions] 用户取消覆盖，本次不保存:', duplicate.name)
         return Promise.resolve()
       }
+      pushHistory()
       duplicate.tabs = list
       duplicate.source = source
       console.log('[newtab][sessions] 覆盖标签集:', duplicate.name, '→', list.length, '个标签')
       return persist().then(renderCollections)
     }
+    pushHistory()
     const now = Date.now()
     collections.unshift({
       id: 'c_' + now + '_' + Math.random().toString(36).slice(2, 6),
@@ -375,6 +526,7 @@
         console.log('[newtab][sessions] 没有可刷新的标签:', collection.name)
         return
       }
+      pushHistory()
       collection.tabs = list
       return persist().then(() => {
         renderCollections()
@@ -401,6 +553,7 @@
     del.setAttribute('aria-label', '移除 ' + (tab.title || tab.url))
     del.addEventListener('click', (event) => {
       event.stopPropagation()
+      pushHistory()
       collection.tabs.splice(index, 1)
       persist().then(() => {
         renderCollections()
@@ -408,6 +561,17 @@
       })
     })
     card.appendChild(del)
+
+    const edit = NT.el('button', 'tab-card-edit')
+    edit.type = 'button'
+    edit.title = '编辑名称与网址'
+    edit.setAttribute('aria-label', '编辑 ' + (tab.title || tab.url))
+    edit.innerHTML = PENCIL_ICON
+    edit.addEventListener('click', (event) => {
+      event.stopPropagation()
+      openTabEditor(collection, tab)
+    })
+    card.appendChild(edit)
 
     function open() {
       if (isRestorable(tab.url)) NT.openInNewTab(tab.url)
@@ -443,9 +607,9 @@
 
   function moveSavedTab(payload, targetCollection, targetIndex) {
     const from = collections.find((item) => item.id === payload.collectionId)
-    if (!from) return
+    if (!from || !from.tabs[payload.index]) return
+    pushHistory()
     const [moved] = from.tabs.splice(payload.index, 1)
-    if (!moved) return
     let at = targetIndex
     // 同集合内向前拖动时，源位置移除后目标下标要左移一位
     if (from === targetCollection && payload.index < targetIndex) at -= 1
@@ -470,9 +634,82 @@
       console.log('[newtab][sessions] 集合中已存在，本次不添加:', entry.url)
       return Promise.resolve()
     }
+    pushHistory()
     collection.tabs.push(entry)
     console.log('[newtab][sessions] Open Tabs 加入集合:', collection.name, '←', entry.url)
     return persist().then(renderCollections)
+  }
+
+  // ---- 编辑集合内单个标签卡片（名称 + 网址） ----
+  // 持有对象引用而非下标：拖拽排序不会让编辑目标错位；被删除 / 被撤销时直接拒绝保存
+  function openTabEditor(collection, tab) {
+    const nameInput = document.getElementById('tabEditName')
+    const urlInput = document.getElementById('tabEditUrl')
+    const error = document.getElementById('tabEditError')
+    const modal = document.getElementById('tabEditModal')
+    if (!nameInput || !urlInput || !error || !modal) return
+    editContext = { collection, tab }
+    nameInput.value = tab.title || ''
+    urlInput.value = tab.url || ''
+    error.textContent = ''
+    error.hidden = true
+    modal.hidden = false
+    setTimeout(() => nameInput.focus(), 0)
+    console.log('[newtab][sessions] 打开标签编辑器:', tab.url)
+  }
+
+  function closeTabEditor() {
+    editContext = null
+    const modal = document.getElementById('tabEditModal')
+    if (modal) modal.hidden = true
+  }
+
+  function submitTabEditor() {
+    if (!editContext) return
+    const { collection, tab } = editContext
+    if (collection.tabs.indexOf(tab) === -1) {
+      console.log('[newtab][sessions] 编辑目标已不存在，取消保存')
+      closeTabEditor()
+      return
+    }
+    const urlInput = document.getElementById('tabEditUrl')
+    const error = document.getElementById('tabEditError')
+    // textarea 允许换行，但 URL 不应含空白：统一去掉，避免把 \n 存进标签集
+    const url = urlInput.value.replace(/\s+/g, '')
+    if (!isRestorable(url)) {
+      error.textContent = '网址需以 http://、https:// 或 file:// 开头'
+      error.hidden = false
+      urlInput.focus()
+      return
+    }
+    const title = document.getElementById('tabEditName').value.trim() || url
+    pushHistory()
+    tab.title = title
+    tab.url = url
+    closeTabEditor()
+    persist().then(() => {
+      renderCollections()
+      console.log('[newtab][sessions] 编辑标签:', title, url)
+    })
+  }
+
+  function bindTabEditor() {
+    const modal = document.getElementById('tabEditModal')
+    if (!modal) return
+    document.getElementById('tabEditClose').addEventListener('click', closeTabEditor)
+    document.getElementById('tabEditCancel').addEventListener('click', closeTabEditor)
+    document.getElementById('tabEditSave').addEventListener('click', submitTabEditor)
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeTabEditor()
+    })
+    ;['tabEditName', 'tabEditUrl'].forEach((id) => {
+      document.getElementById(id).addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          submitTabEditor()
+        }
+      })
+    })
   }
 
   function makeHead(collection) {
@@ -498,7 +735,10 @@
       save.type = 'button'
       save.addEventListener('click', () => {
         const name = input.value.trim()
-        if (name) collection.name = name
+        if (name && name !== collection.name) {
+          pushHistory()
+          collection.name = name
+        }
         editingId = null
         persist().then(() => {
           renderCollections()
@@ -552,27 +792,46 @@
         ? '重新读取该窗口当前打开的标签，覆盖这个集合'
         : '重新读取当前所有可保存的标签，覆盖这个集合'
     refresh.addEventListener('click', () => {
-      refreshCollection(collection, refresh).catch((error) =>
-        console.error('[newtab][sessions] 刷新集合失败:', error.message)
+      askConfirm(
+        refresh,
+        '刷新「' + collection.name + '」会用窗口当前标签覆盖已保存的 ' + collection.tabs.length + ' 个标签，是否继续？',
+        () => {
+          refreshCollection(collection, refresh).catch((error) =>
+            console.error('[newtab][sessions] 刷新集合失败:', error.message)
+          )
+        }
       )
     })
     head.appendChild(refresh)
 
     const restore = NT.el('button', 'mini-btn', '恢复全部')
     restore.type = 'button'
-    restore.addEventListener('click', () => restoreAll(collection))
+    restore.addEventListener('click', () => {
+      askConfirm(
+        restore,
+        '在新窗口恢复「' + collection.name + '」的 ' + collection.tabs.length + ' 个标签，是否继续？',
+        () => restoreAll(collection)
+      )
+    })
     head.appendChild(restore)
 
     const del = NT.el('button', 'mini-btn mini-btn--danger', '删除')
     del.type = 'button'
     del.addEventListener('click', () => {
-      if (!window.confirm('删除集合「' + collection.name + '」？')) return
-      collections = collections.filter((item) => item.id !== collection.id)
-      collapsedCollections.delete(collection.id)
-      persist().then(() => {
-        renderCollections()
-        console.log('[newtab][sessions] 删除集合:', collection.name)
-      })
+      askConfirm(
+        del,
+        '删除集合「' + collection.name + '」（' + collection.tabs.length + ' 个标签）？可用 Ctrl+Z 撤销。',
+        () => {
+          pushHistory()
+          collections = collections.filter((item) => item.id !== collection.id)
+          collapsedCollections.delete(collection.id)
+          persist().then(() => {
+            renderCollections()
+            console.log('[newtab][sessions] 删除集合:', collection.name)
+          })
+        },
+        true
+      )
     })
     head.appendChild(del)
     return head
@@ -599,6 +858,8 @@
   }
 
   function renderCollections() {
+    // 重渲染会换掉 anchor 节点，先收起气泡避免悬空
+    closeConfirm()
     const box = document.getElementById('collectionsList')
     box.textContent = ''
 
@@ -643,6 +904,9 @@
 
   function init() {
     document.getElementById('refreshTabsBtn').addEventListener('click', scheduleRefresh)
+    bindTabEditor()
+    bindKeydown()
+    bindConfirmDismiss()
 
     ;['onCreated', 'onRemoved', 'onUpdated', 'onMoved'].forEach((name) => {
       if (chrome.tabs[name]) chrome.tabs[name].addListener(scheduleRefresh)
@@ -666,6 +930,17 @@
     moveSavedTab,
     moveOpenTab,
     addOpenTabToCollection,
+    undo,
+    redo,
+    pushHistory,
+    openTabEditor,
+    closeTabEditor,
+    submitTabEditor,
+    askConfirm,
+    closeConfirm,
+    get confirmOpen() { return !!confirmPop && !confirmPop.hidden },
     get collections() { return collections },
+    get undoDepth() { return undoStack.length },
+    get redoDepth() { return redoStack.length },
   }
 })(window.NT)

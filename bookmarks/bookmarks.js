@@ -360,7 +360,8 @@ function onSave(event) {
 
   const isFolder = document.getElementById('urlField').hidden
   const title = document.getElementById('editTitle').value.trim()
-  const url = document.getElementById('editUrl').value.trim()
+  // textarea 允许换行，但 URL 不应含空白：统一去掉，避免把 \n 存进书签
+  const url = document.getElementById('editUrl').value.replace(/\s+/g, '')
   const errorBox = document.getElementById('formError')
   const changes = { title }
   if (!isFolder) changes.url = url
@@ -564,6 +565,12 @@ function init() {
     return
   }
   document.getElementById('editorForm').addEventListener('submit', onSave)
+  // 网址是三行 textarea：Enter 直接保存而不是插入换行，避免把 \n 写进 URL；Shift+Enter 保留换行
+  document.getElementById('editUrl').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return
+    event.preventDefault()
+    onSave(event)
+  })
   document.getElementById('closeEditor').addEventListener('click', closeEditor)
   document.getElementById('cancelEditor').addEventListener('click', closeEditor)
   document.getElementById('editorMask').addEventListener('click', (event) => {

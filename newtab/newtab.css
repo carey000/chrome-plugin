@@ -61,6 +61,13 @@ button:disabled {
   display: flex;
   align-items: stretch;
   gap: 12px;
+  /* 纸张质感：稀疏点阵（间距 60px，避免密密麻麻）。纯 CSS 无图片请求、不触发 CSP */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(rgba(0, 0, 0, 0.06) 1.1px, transparent 1.1px),
+    radial-gradient(rgba(255, 255, 255, 0.7) 1.1px, transparent 1.1px);
+  background-size: 60px 60px, 60px 60px;
+  background-position: 0 0, 30px 30px;
 }
 
 /* 左 nav：跟随页面底色，无背景块 */
@@ -1037,6 +1044,36 @@ button:disabled {
   color: var(--danger);
 }
 
+/* 集合头三个操作的按钮下方确认气泡：单例挂 body，fixed 定位 */
+.confirm-pop {
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.confirm-pop[hidden] {
+  display: none;
+}
+
+.confirm-pop-text {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.confirm-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .collection-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1568,4 +1605,90 @@ button:disabled {
 .open-window.is-drop-target > .open-window-head {
   background: rgba(0, 113, 227, 0.07);
   border-radius: 8px;
+}
+
+/* ---------- 编辑单个标签卡片：hover 按钮 + 弹窗表单 ---------- */
+.tab-card-edit {
+  position: absolute;
+  top: 6px;
+  right: calc(8px + var(--tab-card-del-size) + 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tab-card-del-size);
+  height: var(--tab-card-del-size);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  color: #8e8e93;
+  opacity: 0;
+  transition: opacity 0.18s, color 0.18s;
+}
+
+.tab-card-edit svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tab-card:hover .tab-card-edit,
+.tab-card-edit:focus-visible {
+  opacity: 1;
+}
+
+.tab-card-edit:hover {
+  color: var(--accent);
+}
+
+.modal--sm {
+  width: min(420px, 100%);
+}
+
+.field-label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  outline: 0;
+}
+
+.field-input:focus {
+  border-color: rgba(0, 113, 227, 0.45);
+}
+
+/* 长网址：三行 textarea，软折行显示更多内容，不再被单行输入框截断 */
+.field-textarea {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 72px;
+  padding: 8px 12px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+  word-break: break-all;
+}
+
+.field-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.field-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
 }
