@@ -1,5 +1,5 @@
 // 新标签页 · 装配入口
-// 脚本顺序：favicon.js -> common.js -> engines.js -> search.js -> sessions.js -> history.js -> newtab.js -> sites-data.js -> sites.js
+// 脚本顺序：favicon.js -> common.js -> engines.js -> search.js -> sessions.js -> history.js -> newtab.js -> sites-data.js -> sites.js -> notes.js
 // sites-data.js / sites.js 自初始化，不依赖本文件，所以可安全追加在末尾。
 
 ;(function (NT) {
@@ -64,6 +64,7 @@
     sites: { view: 'viewSites', side: false },
     tabs: { view: 'viewTabs', side: true },
     history: { view: 'viewHistory', side: false },
+    notes: { view: 'viewNotes', side: false },
   }
 
   function switchView(view) {

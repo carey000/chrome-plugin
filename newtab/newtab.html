@@ -44,6 +44,14 @@
           </svg>
           <span>页面历史</span>
         </button>
+        <button class="nav-item" data-view="notes" type="button">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <path d="M5 3.5h14v17l-3-2-2 2-2-2-2 2-2-2-3 2v-17Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            <path d="m8.5 9 1.6 1.6L13 8M8.5 14l1.6 1.6L13 13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M15.5 9.5h2M15.5 14.5h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+          <span>便签</span>
+        </button>
       </nav>
 
       <!-- 中：header（搜索框常驻，切到任何 nav 都显示）+ main -->
@@ -158,6 +166,54 @@
               <div class="site-cat-bar" id="sitesCategoryBar"></div>
               <div class="sites-grid" id="sitesGrid"></div>
             </section>
+
+            <!-- 视图 4：便签 · 待办清单 -->
+            <section class="view" id="viewNotes" hidden>
+              <div class="collections-head notes-head">
+                <div class="collections-heading">
+                  <h2 class="collections-title">便签 · 待办</h2>
+                  <span class="collections-summary" id="notesSummary">读取中…</span>
+                </div>
+                <button class="mini-btn" id="notesClearDone" type="button" title="清空已完成 / 已放弃">清空归档</button>
+              </div>
+
+              <div class="site-cat-bar notes-filter" id="notesFilter" role="group" aria-label="待办筛选"></div>
+
+              <form class="notes-add" id="notesAddForm" autocomplete="off">
+                <button class="notes-add-btn" id="notesAddBtn" type="submit" aria-label="新增待办" title="新增待办">+</button>
+                <input
+                  class="notes-add-input"
+                  id="notesInput"
+                  type="text"
+                  placeholder="输入待办，按 Enter 新增"
+                  aria-label="新待办内容"
+                  autocomplete="off"
+                />
+                <input
+                  class="notes-add-date"
+                  id="notesDue"
+                  type="date"
+                  aria-label="计划日期（留空归入今日）"
+                  title="计划日期，留空归入「今日」"
+                />
+              </form>
+
+              <p class="notes-tip">
+                未设置计划日期的待办归入「今日」；单击文字直接编辑，编辑态按 Enter 保存并在下方新增一条；按住 Ctrl / ⌘ 点击可多选，右键或行尾「···」批量操作；勾选后自动归档。
+              </p>
+              <p class="notes-error" id="notesError" hidden></p>
+
+              <div class="notes-list" id="notesList"></div>
+
+              <div class="notes-archive" id="notesArchive">
+                <button class="notes-archive-head" id="notesArchiveToggle" type="button" aria-expanded="true">
+                  <span class="notes-archive-arrow" aria-hidden="true">▾</span>
+                  <span>已完成 / 已放弃</span>
+                  <span class="notes-archive-count" id="notesArchiveCount">0</span>
+                </button>
+                <div class="notes-list notes-list--archive" id="notesArchiveList"></div>
+              </div>
+            </section>
           </div>
         </main>
       </div>
@@ -252,6 +308,9 @@
       </div>
     </div>
 
+    <!-- 便签待办：自绘右键菜单，单例挂 body，fixed 定位 -->
+    <div class="notes-menu" id="notesMenu" hidden></div>
+
     <script src="../src/favicon.js"></script>
     <script src="./common.js"></script>
     <script src="./engines.js"></script>
@@ -262,5 +321,7 @@
     <!-- 网址导航：自初始化，追加在末尾，不改变上面 7 个脚本的相对顺序 -->
     <script src="./sites-data.js"></script>
     <script src="./sites.js"></script>
+    <!-- 便签 · 待办：同样是自初始化模块，只追加不插队 -->
+    <script src="./notes.js"></script>
   </body>
 </html>

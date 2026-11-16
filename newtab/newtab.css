@@ -1692,3 +1692,343 @@ button:disabled {
   gap: 8px;
   margin-top: 22px;
 }
+
+/* ============================================================
+   便签 · 待办清单（notes.js）：整段追加在文件末尾，不改动上方任何既有规则
+   筛选按钮复用 .site-cat / .site-cat-bar，标题复用 .collections-head
+   ============================================================ */
+
+.notes-head {
+  margin-bottom: 12px;
+}
+
+.notes-filter {
+  margin-bottom: 14px;
+}
+
+.notes-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.notes-add-btn {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.notes-add-btn:hover {
+  background: #0062c4;
+}
+
+.notes-add-input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  outline: 0;
+}
+
+.notes-add-input::placeholder {
+  color: var(--muted);
+}
+
+.notes-add-date {
+  flex: 0 0 145px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 12px;
+  outline: 0;
+}
+
+.notes-tip {
+  margin: 10px 2px 16px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.notes-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(229, 72, 77, 0.08);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notes-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: box-shadow 0.18s, border-color 0.18s;
+  user-select: none;
+}
+
+.notes-row:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.notes-row.is-overdue {
+  border-left: 3px solid var(--danger);
+}
+
+.notes-row.is-selected {
+  border-color: var(--accent);
+  background: #f4f8ff;
+}
+
+.notes-row.is-archived {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.notes-check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin-top: 3px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.notes-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.notes-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+  cursor: text;
+  user-select: text;
+}
+
+.notes-row.is-archived .notes-text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.notes-row.is-abandoned .notes-text {
+  opacity: 0.7;
+}
+
+.notes-meta {
+  flex: 1 1 100%;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.notes-flag {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.notes-flag--muted {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--muted);
+}
+
+.notes-more {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.45;
+}
+
+.notes-row:hover .notes-more,
+.notes-row.is-selected .notes-more {
+  opacity: 1;
+}
+
+.notes-more:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text);
+}
+
+.notes-edit-input {
+  flex: 1 1 200px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 113, 227, 0.45);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  outline: 0;
+}
+
+.notes-edit-date {
+  flex: 0 0 145px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  outline: 0;
+}
+
+.notes-empty {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.notes-archive {
+  margin-top: 22px;
+}
+
+.notes-archive-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.035);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.notes-archive-head:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.notes-archive-arrow {
+  display: inline-block;
+  color: var(--muted);
+  transition: transform 0.18s;
+}
+
+.notes-archive-head.is-collapsed .notes-archive-arrow {
+  transform: rotate(-90deg);
+}
+
+.notes-archive-count {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.notes-list--archive {
+  margin-top: 8px;
+}
+
+/* 自绘右键菜单：单例挂 body，fixed 定位 */
+.notes-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+
+.notes-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.notes-menu-item:hover {
+  background: rgba(0, 113, 227, 0.07);
+}
+
+.notes-menu-item.is-danger {
+  color: var(--danger);
+}
+
+.notes-menu-item.is-danger:hover {
+  background: rgba(229, 72, 77, 0.08);
+}
+
+.notes-menu-tip {
+  margin: 4px 4px 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .notes-add {
+    flex-wrap: wrap;
+  }
+
+  .notes-add-input {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .notes-add-date,
+  .notes-edit-date {
+    flex: 1 1 100%;
+  }
+}

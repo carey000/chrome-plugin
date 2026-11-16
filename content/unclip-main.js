@@ -7,6 +7,11 @@
  *
  * 本文件不调用任何 chrome.* API（MAIN world 的 API 可用性官方未确认），
  * 开关状态由 content/unclip-bridge.js 通过 window.postMessage 下发。
+ *
+ * 站点白名单：MAIN world 读不到 isolated world 的 FEATURE_CONFIG，
+ * 因此把白名单硬编码在本文件，与 src/config.js 的 unclip.hosts 保持一致。
+ * 不在白名单内时 blocker 直接放行、样式不注入，避免误伤 Figma 这类
+ * 靠原生 copy / contextmenu / keydown 实现自身功能的富应用。
  */
 ;(function () {
   'use strict'
@@ -18,12 +23,23 @@
   var CSS_RULE =
     '*, *::before, *::after { -webkit-user-select: text !important; user-select: text !important; }'
 
-  var enabled = true // 与 popup 默认开启一致；页面装配后会被真实状态覆盖
+  // 与 src/config.js 的 unclip.hosts 保持一致：只在这些站点接管事件
+  var HOSTS = ['feishu.cn', 'larksuite.com']
+
+  function inWhitelist() {
+    var h = (location.hostname || '').toLowerCase()
+    for (var i = 0; i < HOSTS.length; i++) {
+      if (h === HOSTS[i] || h.endsWith('.' + HOSTS[i])) return true
+    }
+    return false
+  }
+
+  var enabled = true // 用户开关：与 popup 默认开启一致；bridge 下发真实状态
   var sheet = null
   var styleNode = null
 
   function blocker(event) {
-    if (!enabled) return
+    if (!enabled || !inWhitelist()) return
     if (event.type === 'keydown' || event.type === 'keyup') {
       if (!(event.ctrlKey || event.metaKey)) return
       var key = String(event.key || '').toLowerCase()
@@ -71,8 +87,13 @@
 
   function setEnabled(value) {
     enabled = !!value
-    applyStyle(enabled)
-    console.log('[unclip][main] 状态:', enabled ? '已启用' : '已停用')
+    applyStyle(enabled && inWhitelist())
+    console.log(
+      '[unclip][main] 开关:', enabled ? '开' : '关',
+      '站点:', location.hostname,
+      '白名单命中:', inWhitelist(),
+      '实际接管:', enabled && inWhitelist() ? '是' : '否'
+    )
   }
 
   window.addEventListener('message', function (event) {
@@ -82,6 +103,6 @@
     setEnabled(data.enabled)
   })
 
-  applyStyle(enabled)
-  console.log('[unclip][main] 已装载，等待开关状态')
+  applyStyle(enabled && inWhitelist())
+  console.log('[unclip][main] 已装载，等待开关状态；站点:', location.hostname)
 })()

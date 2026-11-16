@@ -5,6 +5,9 @@
  * 同时兼容 content script（isolated world）与 popup（extension page）两种加载方式。
  */
 ;(function () {
+  // unclip 白名单：与 content/unclip-main.js 的 HOSTS 保持一致
+  const UNCLIP_HOSTS = ['feishu.cn', 'larksuite.com']
+
   const FEATURE_CONFIG = [
     {
       id: 'kuxueyuan',
@@ -49,8 +52,12 @@
       storageKey: 'feat_unclip',
       // standalone：由 document_start 的 unclip-bridge/main 自行接管，不走 FeatureManager 装配
       standalone: true,
-      match() {
-        return true
+      // 白名单：只在这些站点接管事件，避免误伤依赖原生事件实现自身功能的富应用（Figma / Miro 等）。
+      // 与 content/unclip-main.js 的 HOSTS 保持一致。
+      hosts: UNCLIP_HOSTS,
+      match(hostname) {
+        const h = (hostname || '').toLowerCase()
+        return UNCLIP_HOSTS.some((host) => h === host || h.endsWith('.' + host))
       },
     },
   ]
