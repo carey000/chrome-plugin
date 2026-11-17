@@ -53,8 +53,9 @@
       // standalone：由 document_start 的 unclip-bridge/main 自行接管，不走 FeatureManager 装配
       standalone: true,
       // 白名单：只在这些站点接管事件，避免误伤依赖原生事件实现自身功能的富应用（Figma / Miro 等）。
-      // 与 content/unclip-main.js 的 HOSTS 保持一致。
+      // hosts 为兜底默认；运行时以 storage.local[hostsKey] 为准（popup 可配置）。
       hosts: UNCLIP_HOSTS,
+      hostsKey: 'unclip_hosts',
       match(hostname) {
         const h = (hostname || '').toLowerCase()
         return UNCLIP_HOSTS.some((host) => h === host || h.endsWith('.' + host))

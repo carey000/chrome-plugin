@@ -8,8 +8,9 @@
  * 本文件不调用任何 chrome.* API（MAIN world 的 API 可用性官方未确认），
  * 开关状态由 content/unclip-bridge.js 通过 window.postMessage 下发。
  *
- * 站点白名单：MAIN world 读不到 isolated world 的 FEATURE_CONFIG，
- * 因此把白名单硬编码在本文件，与 src/config.js 的 unclip.hosts 保持一致。
+ * 站点白名单：MAIN world 读不到 isolated world 的 FEATURE_CONFIG / chrome.storage，
+ * 因此白名单由 bridge 通过同一条 postMessage 下发（popup 改配置后无需刷新即生效）。
+ * HOSTS 是 storage 未配置时的兜底默认，与 src/config.js 的 unclip.hosts 保持一致。
  * 不在白名单内时 blocker 直接放行、样式不注入，避免误伤 Figma 这类
  * 靠原生 copy / contextmenu / keydown 实现自身功能的富应用。
  */
@@ -23,7 +24,7 @@
   var CSS_RULE =
     '*, *::before, *::after { -webkit-user-select: text !important; user-select: text !important; }'
 
-  // 与 src/config.js 的 unclip.hosts 保持一致：只在这些站点接管事件
+  // 兜底默认（storage 未配置时使用），与 src/config.js 的 unclip.hosts 保持一致
   var HOSTS = ['feishu.cn', 'larksuite.com']
 
   function inWhitelist() {
@@ -85,14 +86,20 @@
     })
   }
 
-  function setEnabled(value) {
+  function setEnabled(value, hosts) {
     enabled = !!value
-    applyStyle(enabled && inWhitelist())
+    // bridge 下发的白名单覆盖兜底默认；null 表示未配置，保留默认
+    if (hosts !== null && hosts !== undefined && Object.prototype.toString.call(hosts) === '[object Array]') {
+      HOSTS = hosts.slice()
+    }
+    var active = enabled && inWhitelist()
+    applyStyle(active)
     console.log(
       '[unclip][main] 开关:', enabled ? '开' : '关',
       '站点:', location.hostname,
-      '白名单命中:', inWhitelist(),
-      '实际接管:', enabled && inWhitelist() ? '是' : '否'
+      '白名单:', HOSTS.join(', ') || '(空)',
+      '命中:', inWhitelist(),
+      '实际接管:', active ? '是' : '否'
     )
   }
 
@@ -100,7 +107,7 @@
     if (event.source !== window) return
     var data = event.data
     if (!data || data.channel !== CHANNEL) return
-    setEnabled(data.enabled)
+    setEnabled(data.enabled, data.hosts)
   })
 
   applyStyle(enabled && inWhitelist())

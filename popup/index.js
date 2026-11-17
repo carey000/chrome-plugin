@@ -3,19 +3,105 @@ console.log('%c>> $ popup', 'color:yellow', document, chrome)
 const FEATURE_CONFIG = window.FEATURE_CONFIG || []
 const flags = {}
 
+const UNCLIP = FEATURE_CONFIG.find((f) => f.id === 'unclip') || {}
+const HOSTS_KEY = UNCLIP.hostsKey || 'unclip_hosts'
+let unclipHosts = []
+
 const urlMap = {
   ToExtensions: `chrome://extensions?id=${chrome.runtime.id}`,
 }
 
 function loadFlags() {
   return new Promise((resolve) => {
-    const keys = FEATURE_CONFIG.map((f) => f.storageKey)
-    if (!keys.length) return resolve()
+    const keys = FEATURE_CONFIG.map((f) => f.storageKey).concat([HOSTS_KEY])
     chrome.storage.local.get(keys, (stored) => {
       FEATURE_CONFIG.forEach((f) => {
         flags[f.id] = stored[f.storageKey] !== false
       })
+      unclipHosts = Array.isArray(stored[HOSTS_KEY])
+        ? stored[HOSTS_KEY].slice()
+        : (UNCLIP.hosts || []).slice()
       resolve()
+    })
+  })
+}
+
+// 把用户输入收敛成主机名：去协议 / 路径 / 端口 / www. 前缀，转小写
+function normalizeHost(raw) {
+  let h = String(raw || '').trim().toLowerCase()
+  h = h.replace(/^https?:\/\//, '').replace(/^[^/]+\/\//, '')
+  h = h.split('/')[0].split('?')[0].split('#')[0]
+  h = h.replace(/:\d+$/, '').replace(/^www\./, '').replace(/\/+$/, '')
+  return h
+}
+
+function validHost(h) {
+  // 允许 localhost 与常规域名；拒绝空串、空格、通配符以外的非法字符
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h) || /^localhost$/.test(h)
+}
+
+function saveHosts() {
+  chrome.storage.local.set({ [HOSTS_KEY]: unclipHosts.slice() }, () => {
+    console.log('[popup] 白名单已保存:', unclipHosts)
+  })
+}
+
+// 渲染某个 unclip 卡片内的白名单编辑区（单独函数，避免整表重绘丢焦点）
+function renderUnclipHosts(meta) {
+  let box = meta.querySelector('.unclip-hosts')
+  if (!box) {
+    box = document.createElement('details')
+    box.className = 'unclip-hosts'
+    box.innerHTML = `
+      <summary>白名单站点 <span class="uh-count"></span></summary>
+      <div class="uh-body">
+        <div class="uh-chips"></div>
+        <div class="uh-add">
+          <input type="text" class="uh-input" placeholder="输入域名，如 docs.feishu.cn" />
+          <button type="button" class="uh-btn">添加</button>
+        </div>
+        <div class="uh-tip">仅这些站点接管复制 / 右键；留空则所有站点都不接管</div>
+      </div>`
+    meta.appendChild(box)
+
+    const input = box.querySelector('.uh-input')
+    const add = () => {
+      const h = normalizeHost(input.value)
+      if (!validHost(h)) {
+        input.value = ''
+        input.placeholder = '域名格式不对，请重试'
+        return
+      }
+      if (unclipHosts.indexOf(h) === -1) {
+        unclipHosts.push(h)
+        saveHosts()
+      }
+      input.value = ''
+      renderUnclipHosts(meta)
+      box.open = true
+      input.focus()
+    }
+    box.querySelector('.uh-btn').addEventListener('click', add)
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') add()
+    })
+  }
+
+  box.querySelector('.uh-count').textContent = `(${unclipHosts.length})`
+  const chips = box.querySelector('.uh-chips')
+  chips.innerHTML = ''
+  unclipHosts.forEach((h, i) => {
+    const chip = document.createElement('span')
+    chip.className = 'uh-chip'
+    chip.innerHTML = `${h}<button type="button" class="uh-del" data-i="${i}" title="移除">×</button>`
+    chips.appendChild(chip)
+  })
+  chips.querySelectorAll('.uh-del').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      unclipHosts.splice(Number(btn.dataset.i), 1)
+      saveHosts()
+      renderUnclipHosts(meta)
+      box.open = true
     })
   })
 }
@@ -48,6 +134,10 @@ function render() {
       })
       const meta = row.querySelector('.feature-meta')
       ;(meta || row).appendChild(jump)
+    }
+    // unclip 卡片内嵌白名单编辑区
+    if (f.id === 'unclip') {
+      renderUnclipHosts(row.querySelector('.feature-meta'))
     }
     box.appendChild(row)
   })

@@ -160,6 +160,107 @@ body {
   color: blueviolet;
 }
 
+/* 解除复制限制 · 白名单编辑区 */
+.unclip-hosts {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.unclip-hosts summary {
+  cursor: pointer;
+  color: blueviolet;
+  font-size: 11px;
+  list-style: none;
+  user-select: none;
+}
+.unclip-hosts summary::-webkit-details-marker {
+  display: none;
+}
+.unclip-hosts summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.unclip-hosts[open] summary::before {
+  transform: rotate(90deg);
+}
+.uh-count {
+  color: #999;
+}
+.uh-body {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.uh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.uh-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  background: #f2e9ff;
+  color: #6a3fb5;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.uh-del {
+  border: 0;
+  background: transparent;
+  color: #6a3fb5;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.uh-del:hover {
+  color: #e00;
+}
+.uh-add {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+.uh-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 7px;
+  font-size: 11px;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+}
+.uh-input:focus {
+  border-color: blueviolet;
+}
+.uh-btn {
+  flex: 0 0 auto;
+  padding: 0 10px;
+  font-size: 11px;
+  color: #fff;
+  background: blueviolet;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.uh-btn:hover {
+  opacity: 0.88;
+}
+.uh-tip {
+  margin-top: 7px;
+  font-size: 10px;
+  color: #aaa;
+  line-height: 1.4;
+}
+
 .debug {
   margin-top: 10px;
   font-size: 10px;
