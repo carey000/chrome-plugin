@@ -46,7 +46,7 @@
 
   // header 的链接一律新开标签，避免把 new tab 页面本身导航走
   function bindHeaderLinks() {
-    ;['gmailEntry', 'itabEntry', 'bookmarksEntry'].forEach((id) => {
+    ;['vBookmarksEntry', 'raindropEntry', 'bookmarksEntry'].forEach((id) => {
       const link = document.getElementById(id)
       if (!link) return
       link.addEventListener('click', (event) => {
@@ -60,6 +60,7 @@
   // 视图注册表：以后新增功能只需在这里加一行，并在 HTML 里加 nav-item + view
   // side 表示该视图是否显示右侧 240px 功能区；header 搜索框常驻，不随视图变化
   const DEFAULT_VIEW = 'sites'
+  const LAST_VIEW_KEY = 'nt_last_view'
   const VIEW_MAP = {
     sites: { view: 'viewSites', side: false },
     tabs: { view: 'viewTabs', side: true },
@@ -80,6 +81,9 @@
     document.getElementById('sidePanel').hidden = !cfg.side
     if (target === 'history') NT.history.render()
     console.log('[newtab] 切换视图:', target, '右侧功能区:', cfg.side ? '显示' : '隐藏')
+    NT.storageSet({ [LAST_VIEW_KEY]: target })
+      .then(() => console.log('[newtab] 已记住选中视图:', target))
+      .catch((error) => console.warn('[newtab] 记住视图失败:', error.message))
   }
 
   function bindNav() {
@@ -108,6 +112,14 @@
     bindHeaderLinks()
     bindNav()
     bindNavToggle()
+    // 恢复上次选中的 nav；读取失败时保留 HTML 默认视图（sites）
+    NT.storageGet(LAST_VIEW_KEY)
+      .then((data) => {
+        const last = data[LAST_VIEW_KEY] || DEFAULT_VIEW
+        console.log('[newtab] 恢复上次视图:', last)
+        switchView(last)
+      })
+      .catch((error) => console.warn('[newtab] 读取上次视图失败，保留默认视图:', error.message))
     renderDate()
     // 大号时钟常驻页面，定时刷新；切回页面时由 focus 事件立即重算
     if (typeof window.setInterval === 'function') window.setInterval(renderDate, 30 * 1000)

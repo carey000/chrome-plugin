@@ -8,7 +8,7 @@
   const KEY = 'nt_collections'
   const RESTORABLE = /^(https?|file):\/\//i
   // 左侧集合可接收的拖拽来源：集合内卡片排序、右侧 Open Tabs 加入
-  const COLLECTION_DROPS = ['saved-tab', 'open-tab']
+  const COLLECTION_DROPS = ['saved-tab', 'open-tab', 'open-group']
 
   // source 只用于「刷新」按钮定位来源窗口，不再作为去重依据
   function windowSource(windowId) {
@@ -44,7 +44,35 @@
   let confirmAnchor = null
   let confirmAction = null
   const collapsedWindows = new Set()
-  const collapsedCollections = new Set()
+  const collapsedGroups = new Set()
+  let lastGroupDragAt = 0
+
+  // Chrome 标签组颜色枚举 -> 实际色值（与浏览器组标签颜色一致）
+  const GROUP_COLORS = {
+    grey: '#9aa0a6',
+    blue: '#1a73e8',
+    red: '#d93025',
+    yellow: '#f9ab00',
+    green: '#1e8e3e',
+    pink: '#e91e63',
+    purple: '#9334e6',
+    cyan: '#00bcd4',
+    orange: '#f57c00',
+  }
+
+  // tabGroups 查询包一层 Promise，兼容旧版 Chrome（无该 API 时返回空）
+  function queryGroups() {
+    return new Promise((resolve) => {
+      if (!chrome.tabGroups || !chrome.tabGroups.query) return resolve([])
+      chrome.tabGroups.query({}, (groups) => {
+        if (chrome.runtime && chrome.runtime.lastError) {
+          console.log('[newtab][sessions] 查询标签组失败:', chrome.runtime.lastError.message)
+          return resolve([])
+        }
+        resolve(groups || [])
+      })
+    })
+  }
 
   // ---- 拖拽：左侧集合卡片（本地数组）与右侧真实标签（chrome.tabs.move）共用 ----
   function startDrag(event, payload) {
@@ -296,7 +324,78 @@
     return persist().then(renderCollections)
   }
 
+  // 新建自定义空白标签集：插入后直接进入重命名编辑态，名字由用户输入
+  function createEmptyCollection() {
+    pushHistory()
+    const now = Date.now()
+    const item = {
+      id: 'c_' + now + '_' + Math.random().toString(36).slice(2, 6),
+      source: 'custom',
+      name: '新标签集',
+      createdAt: now,
+      tabs: [],
+    }
+    collections.unshift(item)
+    editingId = item.id
+    return persist()
+      .then(renderCollections)
+      .then(() => {
+        console.log('[newtab][sessions] 新建空白标签集:', item.name, item.id)
+        const node = document.querySelector('.collection-input')
+        if (node && node.scrollIntoView) node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      })
+      .catch((error) => console.error('[newtab][sessions] 新建标签集失败:', error.message))
+  }
+
   // ---- 右侧：Open Tabs（按窗口分组、可折叠、每组单独保存） ----
+  // 标签组渲染成树：组名 + 与浏览器一致的颜色圆点 + 子标签用同色连接线
+  function makeTabGroup(group, groupTabs) {
+    const color = GROUP_COLORS[group.color] || GROUP_COLORS.grey
+    const collapsed = collapsedGroups.has(group.id)
+    const wrap = NT.el('div', 'open-group' + (collapsed ? ' is-collapsed' : ''))
+    wrap.style.setProperty('--group-color', color)
+
+    const head = NT.el('button', 'open-group-head')
+    head.type = 'button'
+    head.setAttribute('aria-expanded', String(!collapsed))
+    head.title = (collapsed ? '展开' : '折叠') + '标签组'
+    const caret = NT.el('span', 'open-group-caret')
+    caret.innerHTML = CARET_ICON
+    head.appendChild(caret)
+    head.appendChild(NT.el('span', 'open-group-dot'))
+    head.appendChild(NT.el('span', 'open-group-name', group.title || '（未命名组）'))
+    head.appendChild(NT.el('span', 'open-group-count', String(groupTabs.length)))
+    // 拖组标题 = 把整组可保存标签一起加入左侧集合
+    head.draggable = true
+    head.title = '拖动可将整组标签加入集合；点击展开 / 折叠'
+    head.addEventListener('dragstart', (event) => {
+      const entries = groupTabs
+        .filter((tab) => isRestorable(tab.url || ''))
+        .map(toEntry)
+      startDrag(event, { kind: 'open-group', groupId: group.id, entries })
+    })
+    head.addEventListener('dragend', () => {
+      lastGroupDragAt = Date.now()
+      clearDragMarks()
+    })
+    head.addEventListener('click', () => {
+      // 拖完组标题浏览器可能补发一次 click，短时间内忽略，避免误折叠
+      if (Date.now() - lastGroupDragAt < 250) return
+      if (collapsedGroups.has(group.id)) collapsedGroups.delete(group.id)
+      else collapsedGroups.add(group.id)
+      console.log('[newtab][sessions] 标签组折叠切换:', group.id, collapsedGroups.has(group.id))
+      renderOpenTabs()
+    })
+    wrap.appendChild(head)
+
+    if (!collapsed) {
+      const children = NT.el('div', 'open-group-children')
+      groupTabs.forEach((tab) => children.appendChild(makeOpenTab(tab)))
+      wrap.appendChild(children)
+    }
+    return wrap
+  }
+
   function makeOpenTab(tab) {
     const url = tab.url || ''
     // 外层用 div + role=button，避免删除用的 <button> 嵌套在 <button> 内
@@ -386,9 +485,13 @@
     return Promise.all([
       NT.tabsQuery({}),
       NT.tabsQuery({ lastFocusedWindow: true }).catch(() => []),
-    ]).then(([tabs, focused]) => {
+      queryGroups(),
+    ]).then(([tabs, focused, tabGroups]) => {
       const box = document.getElementById('openTabsList')
       box.textContent = ''
+
+      const groupMap = new Map()
+      tabGroups.forEach((group) => groupMap.set(group.id, group))
 
       const currentWindowId = focused.length ? focused[0].windowId : null
       const groups = new Map()
@@ -447,7 +550,20 @@
 
         if (!collapsed) {
           const listBox = NT.el('div', 'open-window-tabs')
-          list.forEach((tab) => listBox.appendChild(makeOpenTab(tab)))
+          const renderedGroups = new Set()
+          list.forEach((tab) => {
+            const groupId = tab.groupId
+            const group = groupId !== undefined && groupId !== -1 ? groupMap.get(groupId) : null
+            if (!group) {
+              listBox.appendChild(makeOpenTab(tab))
+              return
+            }
+            // 一个组只画一棵树，所有同组标签作为子节点
+            if (renderedGroups.has(groupId)) return
+            renderedGroups.add(groupId)
+            const groupTabs = list.filter((item) => item.groupId === groupId)
+            listBox.appendChild(makeTabGroup(group, groupTabs))
+          })
           section.appendChild(listBox)
         }
 
@@ -465,8 +581,8 @@
       })
 
       document.getElementById('openTabsSummary').textContent =
-        ids.length + ' windows · ' + tabs.length + ' tabs'
-      console.log('[newtab][sessions] Open Tabs:', tabs.length, '个标签')
+        ids.length + ' windows · ' + tabGroups.length + ' groups · ' + tabs.length + ' tabs'
+      console.log('[newtab][sessions] Open Tabs:', tabs.length, '个标签,', tabGroups.length, '个标签组')
       return tabs
     })
   }
@@ -640,6 +756,24 @@
     return persist().then(renderCollections)
   }
 
+  // 整组拖入集合：一次 pushHistory，去重后批量加入可保存标签
+  function addOpenGroupToCollection(entries, collection) {
+    const fresh = (entries || []).filter(
+      (entry, i, list) =>
+        isRestorable(entry.url) &&
+        !collection.tabs.some((tab) => tab.url === entry.url) &&
+        list.findIndex((item) => item.url === entry.url) === i
+    )
+    if (!fresh.length) {
+      console.log('[newtab][sessions] 整组无新增可保存标签:', collection.name)
+      return Promise.resolve()
+    }
+    pushHistory()
+    fresh.forEach((entry) => collection.tabs.push(entry))
+    console.log('[newtab][sessions] 整组加入集合:', collection.name, '←', fresh.length, '个标签')
+    return persist().then(renderCollections)
+  }
+
   // ---- 编辑集合内单个标签卡片（名称 + 网址） ----
   // 持有对象引用而非下标：拖拽排序不会让编辑目标错位；被删除 / 被撤销时直接拒绝保存
   function openTabEditor(collection, tab) {
@@ -714,7 +848,7 @@
 
   function makeHead(collection) {
     const head = NT.el('div', 'collection-head')
-    const collapsed = collapsedCollections.has(collection.id)
+    const collapsed = !!collection.collapsed
 
     if (editingId === collection.id) {
       const input = NT.el('input', 'collection-input')
@@ -723,17 +857,17 @@
       input.setAttribute('aria-label', '集合名称')
       head.appendChild(input)
 
-      const cancel = NT.el('button', 'mini-btn', 'Cancel')
-      cancel.type = 'button'
-      cancel.addEventListener('click', () => {
-        editingId = null
-        renderCollections()
-      })
-      head.appendChild(cancel)
-
-      const save = NT.el('button', 'mini-btn mini-btn--primary', 'Save')
-      save.type = 'button'
-      save.addEventListener('click', () => {
+      // 保存 / 取消 / 回车 / 点击空白处失焦，都收敛到这一个出口，且只执行一次
+      let finished = false
+      function finish(save) {
+        if (finished) return
+        finished = true
+        if (!save) {
+          editingId = null
+          renderCollections()
+          console.log('[newtab][sessions] 取消重命名:', collection.name)
+          return
+        }
         const name = input.value.trim()
         if (name && name !== collection.name) {
           pushHistory()
@@ -742,17 +876,40 @@
         editingId = null
         persist().then(() => {
           renderCollections()
-          console.log('[newtab][sessions] 重命名集合:', name)
+          console.log('[newtab][sessions] 重命名集合:', name || collection.name)
         })
-      })
+      }
+
+      // 按钮点击时阻止 input 失焦，避免 blur 抢先触发保存覆盖 Cancel / Save 的语义
+      const keepFocus = (event) => event.preventDefault()
+      const cancel = NT.el('button', 'mini-btn', 'Cancel')
+      cancel.type = 'button'
+      cancel.addEventListener('mousedown', keepFocus)
+      cancel.addEventListener('click', () => finish(false))
+      head.appendChild(cancel)
+
+      const save = NT.el('button', 'mini-btn mini-btn--primary', 'Save')
+      save.type = 'button'
+      save.addEventListener('mousedown', keepFocus)
+      save.addEventListener('click', () => finish(true))
       head.appendChild(save)
+
+      input.addEventListener('blur', () => finish(true))
       input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') save.click()
-        if (event.key === 'Escape') cancel.click()
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          finish(true)
+        }
+        if (event.key === 'Escape') finish(false)
       })
       setTimeout(() => input.focus(), 0)
       return head
     }
+
+    const grip = NT.el('span', 'collection-grip', '⠿')
+    grip.title = '拖动排序'
+    grip.setAttribute('aria-label', '拖动排序标签集')
+    head.appendChild(grip)
 
     const toggle = NT.el('button', 'collection-title', collection.name)
     toggle.type = 'button'
@@ -762,9 +919,12 @@
     caret.innerHTML = CARET_ICON
     toggle.appendChild(caret)
     toggle.addEventListener('click', () => {
-      if (collapsedCollections.has(collection.id)) collapsedCollections.delete(collection.id)
-      else collapsedCollections.add(collection.id)
-      renderCollections()
+      pushHistory()
+      collection.collapsed = !collection.collapsed
+      persist().then(() => {
+        renderCollections()
+        console.log('[newtab][sessions] 折叠状态:', collection.name, collection.collapsed ? '收起' : '展开')
+      })
     })
     head.appendChild(toggle)
 
@@ -824,7 +984,6 @@
         () => {
           pushHistory()
           collections = collections.filter((item) => item.id !== collection.id)
-          collapsedCollections.delete(collection.id)
           persist().then(() => {
             renderCollections()
             console.log('[newtab][sessions] 删除集合:', collection.name)
@@ -876,9 +1035,10 @@
 
     collections.forEach((collection) => {
       const section = NT.el('section', 'collection')
+      section.dataset.id = collection.id
       section.appendChild(makeHead(collection))
       // 折叠时只保留标题行，整个 section 仍要挂到 DOM 上
-      if (!collapsedCollections.has(collection.id)) {
+      if (!collection.collapsed) {
         const grid = NT.el('div', 'collection-grid')
         collection.tabs.forEach((tab, index) =>
           grid.appendChild(makeTabCard(collection, tab, index))
@@ -896,14 +1056,59 @@
         event.preventDefault()
         clearDragMarks()
         if (payload.kind === 'open-tab') addOpenTabToCollection(payload.entry, collection)
+        else if (payload.kind === 'open-group') addOpenGroupToCollection(payload.entries, collection)
         else moveSavedTab(payload, collection, collection.tabs.length)
       })
       box.appendChild(section)
     })
   }
 
+  // Sortable 排序：只改「集合之间」的顺序，集合内卡片仍走原有原生拖拽
+  function syncCollectionOrder(box) {
+    const ids = []
+    box.querySelectorAll('.collection').forEach((el) => { if (el.dataset.id) ids.push(el.dataset.id) })
+    if (!ids.length) return
+    const byId = {}
+    collections.forEach((c) => { byId[c.id] = c })
+    const next = ids.map((id) => byId[id]).filter(Boolean)
+    if (next.length !== collections.length) return
+    const before = collections.map((c) => c.id).join('|')
+    const after = next.map((c) => c.id).join('|')
+    if (before === after) return
+    pushHistory()
+    collections = next
+    persist().then(() => {
+      console.log('[newtab][sessions] 标签集排序完成:', collections.map((c) => c.name).join(' / '))
+    }).catch((error) => console.error('[newtab][sessions] 排序保存失败:', error.message))
+  }
+
+  function initCollectionSort() {
+    const box = document.getElementById('collectionsList')
+    if (!box || typeof window.Sortable === 'undefined') {
+      if (typeof window.Sortable === 'undefined') console.warn('[newtab][sessions] Sortable 未加载，标签集排序不可用')
+      return
+    }
+    window.Sortable.create(box, {
+      animation: 180,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      handle: '.collection-grip',
+      draggable: '.collection',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      onStart: () => { dragState = null },
+      onEnd: (event) => {
+        dragState = null
+        if (event.from !== event.to) return
+        syncCollectionOrder(box)
+      }
+    })
+    console.log('[newtab][sessions] 标签集拖拽排序已初始化')
+  }
+
   function init() {
     document.getElementById('refreshTabsBtn').addEventListener('click', scheduleRefresh)
+    document.getElementById('createCollectionBtn').addEventListener('click', createEmptyCollection)
     bindTabEditor()
     bindKeydown()
     bindConfirmDismiss()
@@ -913,7 +1118,7 @@
     })
 
     loadCollections()
-      .then(renderCollections)
+      .then(() => { initCollectionSort(); return renderCollections() })
       .then(renderOpenTabs)
       .catch((error) => console.error('[newtab][sessions] 初始化失败:', error.message))
 
@@ -922,6 +1127,7 @@
 
   NT.sessions = {
     init,
+    createEmptyCollection,
     renderCollections,
     renderOpenTabs,
     saveWindowTabs,

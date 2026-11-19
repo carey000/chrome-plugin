@@ -11,6 +11,66 @@ const urlMap = {
   ToExtensions: `chrome://extensions?id=${chrome.runtime.id}`,
 }
 
+// ---- 左边界拖拽调宽：往左拉变宽，范围 [MIN, MAX]，宽度存 storage ----
+const WIDTH_KEY = 'popup_width'
+const MIN_W = 360
+const MAX_W = 640
+let popupWidth = MIN_W
+
+function applyPopupWidth(w) {
+  popupWidth = Math.max(MIN_W, Math.min(MAX_W, Math.round(w)))
+  document.body.style.width = popupWidth + 'px'
+  console.log('[popup] 面板宽度:', popupWidth)
+}
+
+function loadPopupWidth() {
+  chrome.storage.local.get([WIDTH_KEY], (data) => {
+    if (typeof data[WIDTH_KEY] === 'number') applyPopupWidth(data[WIDTH_KEY])
+  })
+}
+
+function savePopupWidth() {
+  chrome.storage.local.set({ [WIDTH_KEY]: popupWidth }, () => {
+    console.log('[popup] 宽度已保存:', popupWidth)
+  })
+}
+
+function bindResizer() {
+  const handle = document.getElementById('popupResizer')
+  if (!handle) return
+  let startX = 0
+  let startW = 0
+  let dragging = false
+
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return
+    dragging = true
+    startX = event.clientX
+    startW = popupWidth
+    handle.classList.add('is-dragging')
+    document.body.classList.add('is-resizing')
+    try { handle.setPointerCapture(event.pointerId) } catch (e) { void e }
+    console.log('[popup] 开始拖动, 起始宽度:', startW)
+  })
+
+  handle.addEventListener('pointermove', (event) => {
+    if (!dragging) return
+    // 往左拉：clientX 变小 → (startX - clientX) 为正 → 变宽
+    applyPopupWidth(startW + (startX - event.clientX))
+  })
+
+  const stop = () => {
+    if (!dragging) return
+    dragging = false
+    handle.classList.remove('is-dragging')
+    document.body.classList.remove('is-resizing')
+    savePopupWidth()
+    console.log('[popup] 结束拖动, 最终宽度:', popupWidth)
+  }
+  handle.addEventListener('pointerup', stop)
+  handle.addEventListener('pointercancel', stop)
+}
+
 function loadFlags() {
   return new Promise((resolve) => {
     const keys = FEATURE_CONFIG.map((f) => f.storageKey).concat([HOSTS_KEY])
@@ -192,6 +252,8 @@ function bindLinks() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  loadPopupWidth()
+  bindResizer()
   await loadFlags()
   render()
   bindLinks()

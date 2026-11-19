@@ -1,0 +1,171 @@
+/* ============================================================
+   共享主题令牌：亮色（light）/ 暗蓝（dark）
+   用法：页面在 <head> 引入本文件，再引入自己的 CSS；
+        data-theme 由 src/theme.js 与 head 内联脚本统一管理。
+   ============================================================ */
+
+:root,
+html[data-theme='light'] {
+  color-scheme: light;
+
+  /* 基础表面 */
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #fafafb;
+  --surface-3: #f4f6fa;
+  --glass: rgba(255, 255, 255, 0.74);
+
+  /* 文字 */
+  --text: #1d1d1f;
+  --text-2: #3a3a3c;
+  --muted: #86868b;
+
+  /* 描边 / 叠加 */
+  --line: rgba(0, 0, 0, 0.07);
+  --line-2: rgba(0, 0, 0, 0.14);
+  --overlay: rgba(0, 0, 0, 0.035);
+  --overlay-2: rgba(0, 0, 0, 0.06);
+
+  /* 强调色 */
+  --accent: #0071e3;
+  --accent-2: #0066cc;
+  --accent-soft: rgba(0, 113, 227, 0.08);
+  --accent-line: rgba(0, 113, 227, 0.32);
+  --on-accent: #ffffff;
+
+  /* 危险色 */
+  --danger: #e5484d;
+  --danger-deep: #d70015;
+  --danger-soft: rgba(229, 72, 77, 0.08);
+  --danger-line: rgba(229, 72, 77, 0.32);
+
+  /* 阴影 */
+  --shadow: rgba(0, 0, 0, 0.12);
+  --shadow-strong: rgba(0, 0, 0, 0.24);
+
+  /* 深色提示条（不随主题反转） */
+  --toast-bg: #1d1d1f;
+  --on-toast: #ffffff;
+  --toast-btn: rgba(255, 255, 255, 0.16);
+  --toast-btn-hover: rgba(255, 255, 255, 0.26);
+
+  /* 半透明表面：亮色下是白，暗色下自动换成深蓝灰 */
+  --panel-16: rgba(255, 255, 255, 0.16);
+  --panel-30: rgba(255, 255, 255, 0.3);
+  --panel-40: rgba(255, 255, 255, 0.4);
+  --panel-50: rgba(255, 255, 255, 0.5);
+  --panel-55: rgba(255, 255, 255, 0.55);
+  --panel-60: rgba(255, 255, 255, 0.6);
+  --panel-62: rgba(255, 255, 255, 0.62);
+  --panel-65: rgba(255, 255, 255, 0.65);
+  --panel-70: rgba(255, 255, 255, 0.7);
+  --panel-86: rgba(255, 255, 255, 0.86);
+  --panel-90: rgba(255, 255, 255, 0.9);
+  --panel-95: rgba(255, 255, 255, 0.95);
+
+  /* 纸张点阵纹理 */
+  --paper-dot-1: rgba(0, 0, 0, 0.06);
+  --paper-dot-2: rgba(255, 255, 255, 0.7);
+}
+
+/* ------------------------------------------------------------
+   暗蓝：取自 vBookmarks 深色截图
+   侧栏 #12141b / 面板 #22252d、#282d38 / 描边 #394151
+   文字 #e5e8f0 / 次要 #99a1b0 / 强调 #7db8e5 / 危险 #dd5145
+   ------------------------------------------------------------ */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #12141b;
+  --surface: #22252d;
+  --surface-2: #282d38;
+  --surface-3: #394151;
+  --glass: rgba(34, 37, 45, 0.86);
+
+  --text: #e5e8f0;
+  --text-2: #c8cfdb;
+  --muted: #99a1b0;
+
+  --line: rgba(153, 161, 176, 0.16);
+  --line-2: rgba(153, 161, 176, 0.3);
+  --overlay: rgba(255, 255, 255, 0.05);
+  --overlay-2: rgba(255, 255, 255, 0.09);
+
+  --accent: #7db8e5;
+  --accent-2: #a7d2f2;
+  --accent-soft: rgba(125, 184, 229, 0.14);
+  --accent-line: rgba(125, 184, 229, 0.38);
+  --on-accent: #10151d;
+
+  --danger: #dd5145;
+  --danger-deep: #e26459;
+  --danger-soft: rgba(221, 81, 69, 0.14);
+  --danger-line: rgba(221, 81, 69, 0.38);
+
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-strong: rgba(0, 0, 0, 0.66);
+
+  --toast-bg: #0d1016;
+  --on-toast: #e5e8f0;
+  --toast-btn: rgba(229, 232, 240, 0.14);
+  --toast-btn-hover: rgba(229, 232, 240, 0.24);
+
+  --panel-16: rgba(40, 45, 56, 0.16);
+  --panel-30: rgba(40, 45, 56, 0.3);
+  --panel-40: rgba(40, 45, 56, 0.4);
+  --panel-50: rgba(40, 45, 56, 0.5);
+  --panel-55: rgba(40, 45, 56, 0.55);
+  --panel-60: rgba(40, 45, 56, 0.6);
+  --panel-62: rgba(40, 45, 56, 0.62);
+  --panel-65: rgba(40, 45, 56, 0.65);
+  --panel-70: rgba(40, 45, 56, 0.7);
+  --panel-86: rgba(34, 37, 45, 0.86);
+  --panel-90: rgba(34, 37, 45, 0.9);
+  --panel-95: rgba(34, 37, 45, 0.95);
+
+  --paper-dot-1: rgba(153, 161, 176, 0.14);
+  --paper-dot-2: rgba(0, 0, 0, 0.28);
+}
+
+/* ============================================================
+   主题切换按钮（两个页面共用）
+   ============================================================ */
+.theme-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.18s, color 0.18s, border-color 0.18s, transform 0.18s;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--surface-3);
+  transform: translateY(-1px);
+}
+
+.theme-toggle svg {
+  width: 17px;
+  height: 17px;
+}
+
+.theme-toggle .icon-sun {
+  display: none;
+}
+
+html[data-theme='dark'] .theme-toggle .icon-moon {
+  display: none;
+}
+
+html[data-theme='dark'] .theme-toggle .icon-sun {
+  display: block;
+}

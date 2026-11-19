@@ -267,3 +267,30 @@ body {
   color: #bbb;
   word-break: break-all;
 }
+
+/* ---------- 左边界拖拽调宽（popup/index.js）：最宽 640px ---------- */
+body {
+  position: relative;
+}
+
+.popup-resizer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 100;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background-color 0.18s;
+}
+
+.popup-resizer:hover,
+.popup-resizer.is-dragging {
+  background: rgba(138, 43, 226, 0.35);
+}
+
+body.is-resizing {
+  user-select: none;
+  cursor: ew-resize;
+}
