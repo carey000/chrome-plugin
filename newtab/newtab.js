@@ -58,29 +58,28 @@
   }
 
   // 视图注册表：以后新增功能只需在这里加一行，并在 HTML 里加 nav-item + view
-  // side 表示该视图是否显示右侧 240px 功能区；header 搜索框常驻，不随视图变化
+  // 右侧功能区所有视图常驻；仅「标签管理」时额外显示 Open Tabs / 暂存区 tab 切换
   const DEFAULT_VIEW = 'sites'
   const LAST_VIEW_KEY = 'nt_last_view'
   const VIEW_MAP = {
-    sites: { view: 'viewSites', side: false },
-    tabs: { view: 'viewTabs', side: true },
-    history: { view: 'viewHistory', side: false },
-    notes: { view: 'viewNotes', side: false },
+    sites: 'viewSites',
+    tabs: 'viewTabs',
+    history: 'viewHistory',
+    notes: 'viewNotes',
   }
 
   function switchView(view) {
     const target = VIEW_MAP[view] ? view : DEFAULT_VIEW
-    const cfg = VIEW_MAP[target]
     document.querySelectorAll('.nav-item').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.view === target)
     })
     Object.keys(VIEW_MAP).forEach((key) => {
-      const node = document.getElementById(VIEW_MAP[key].view)
+      const node = document.getElementById(VIEW_MAP[key])
       if (node) node.hidden = key !== target
     })
-    document.getElementById('sidePanel').hidden = !cfg.side
+    if (NT.stash && typeof NT.stash.setView === 'function') NT.stash.setView(target)
     if (target === 'history') NT.history.render()
-    console.log('[newtab] 切换视图:', target, '右侧功能区:', cfg.side ? '显示' : '隐藏')
+    console.log('[newtab] 切换视图:', target, '| 右侧功能区常驻')
     NT.storageSet({ [LAST_VIEW_KEY]: target })
       .then(() => console.log('[newtab] 已记住选中视图:', target))
       .catch((error) => console.warn('[newtab] 记住视图失败:', error.message))

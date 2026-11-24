@@ -28,8 +28,10 @@
   }
 
   function makeItem(item) {
-    const row = NT.el('button', 'history-item')
-    row.type = 'button'
+    // 用 div + role=button：行内要放「加入暂存区」按钮，避免 button 嵌套 button
+    const row = NT.el('div', 'history-item')
+    row.setAttribute('role', 'button')
+    row.tabIndex = 0
     row.title = item.title || item.url
     row.appendChild(NT.favicon('', 'history-favicon'))
 
@@ -39,7 +41,34 @@
     row.appendChild(meta)
 
     row.appendChild(NT.el('span', 'history-time', formatVisit(item.lastVisitTime)))
+    if (NT.stash) {
+      row.appendChild(NT.stash.addButton({
+        type: 'history',
+        title: item.title || item.url,
+        url: item.url
+      }))
+    }
+    row.draggable = !!NT.stash
+    row.addEventListener('dragstart', (event) => {
+      if (!NT.stash) return
+      var payload = {
+        kind: 'history',
+        entry: { title: item.title || item.url, url: item.url }
+      }
+      NT.dragState = payload
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'copy'
+        try { event.dataTransfer.setData('text/plain', JSON.stringify(payload)) } catch (error) { /* 忽略 */ }
+      }
+      console.log('[newtab][history] 拖出历史记录:', item.title || item.url)
+    })
+    row.addEventListener('dragend', () => { NT.dragState = null })
     row.addEventListener('click', () => NT.openInNewTab(item.url))
+    row.addEventListener('keydown', (event) => {
+      if (event.target !== row || (event.key !== 'Enter' && event.key !== ' ')) return
+      event.preventDefault()
+      row.click()
+    })
     return row
   }
 

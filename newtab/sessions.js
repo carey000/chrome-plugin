@@ -6,9 +6,10 @@
   'use strict'
 
   const KEY = 'nt_collections'
+  const WIN_PREFS_KEY = 'nt_open_window_prefs'
   const RESTORABLE = /^(https?|file):\/\//i
-  // 左侧集合可接收的拖拽来源：集合内卡片排序、右侧 Open Tabs 加入
-  const COLLECTION_DROPS = ['saved-tab', 'open-tab', 'open-group']
+  // 左侧集合可接收的拖拽来源：集合内卡片排序、Open Tabs、暂存区条目、整组标签
+  const COLLECTION_DROPS = ['saved-tab', 'open-tab', 'stash-tab', 'open-group']
 
   // source 只用于「刷新」按钮定位来源窗口，不再作为去重依据
   function windowSource(windowId) {
@@ -24,6 +25,11 @@
     '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
     '<path d="M4 20h4l10-10-4-4L4 16v4Z" fill="none" stroke="currentColor" ' +
     'stroke-width="1.8" stroke-linejoin="round"/></svg>'
+
+  const PIN_ICON =
+    '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">' +
+    '<path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6ZM12 14v7" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
   // 与 newtab.html 里 #refreshTabsBtn 的图标保持一致
   const REFRESH_ICON =
@@ -45,6 +51,8 @@
   let confirmAction = null
   const collapsedWindows = new Set()
   const collapsedGroups = new Set()
+  let windowPrefs = {}
+  let windowSorting = false
   let lastGroupDragAt = 0
 
   // Chrome 标签组颜色枚举 -> 实际色值（与浏览器组标签颜色一致）
@@ -77,6 +85,8 @@
   // ---- 拖拽：左侧集合卡片（本地数组）与右侧真实标签（chrome.tabs.move）共用 ----
   function startDrag(event, payload) {
     dragState = payload
+    // 跨模块拖拽（暂存区 → 集合）在 dragover 阶段拿不到 getData，用共享状态兜底
+    NT.dragState = payload
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move'
       try {
@@ -93,7 +103,7 @@
 
   // kind 可传单个字符串或数组：左侧集合同时接收 saved-tab 与 open-tab 两种来源
   function readDrag(event, kinds) {
-    let payload = dragState
+    let payload = dragState || NT.dragState
     if (!payload && event.dataTransfer && event.dataTransfer.getData) {
       try {
         payload = JSON.parse(event.dataTransfer.getData('text/plain'))
@@ -107,6 +117,7 @@
 
   function clearDragMarks() {
     dragState = null
+    NT.dragState = null
     if (!document.querySelectorAll) return
     document.querySelectorAll('.is-dragging, .is-drop-target').forEach((node) => {
       node.classList.remove('is-dragging', 'is-drop-target')
@@ -143,6 +154,22 @@
 
   function persist() {
     return NT.storageSet({ [KEY]: collections })
+  }
+
+  // 窗口分组的显示顺序与固定状态：窗口 ID 是浏览器分配的，只能持久化管理 UI 顺序
+  function loadWindowPrefs() {
+    return NT.storageGet([WIN_PREFS_KEY]).then((data) => {
+      const prefs = data && data[WIN_PREFS_KEY]
+      windowPrefs = prefs && typeof prefs === 'object' && !Array.isArray(prefs) ? prefs : {}
+      console.log('[newtab][sessions] 窗口分组偏好已加载:', Object.keys(windowPrefs).length)
+    }).catch((error) => {
+      console.warn('[newtab][sessions] 窗口偏好读取失败:', error.message)
+      windowPrefs = {}
+    })
+  }
+
+  function persistWindowPrefs() {
+    return NT.storageSet({ [WIN_PREFS_KEY]: windowPrefs })
   }
 
   // ---- 撤销 / 反撤销：修改前压快照，Ctrl+Z / Ctrl+Shift+Z 前后切换 ----
@@ -427,6 +454,16 @@
     })
     row.appendChild(del)
 
+    // Open Tabs 的标签：不关闭原标签，复制一份进暂存区
+    if (isRestorable(url) && NT.stash) {
+      row.appendChild(NT.stash.addButton({
+        type: 'open-tab',
+        title: tab.title || url,
+        url,
+        favIconUrl: tab.favIconUrl || ''
+      }))
+    }
+
     row.addEventListener('click', () => {
       if (isRestorable(url)) NT.openInNewTab(url)
       else console.log('[newtab][sessions] 该地址不参与保存:', url)
@@ -500,8 +537,18 @@
         groups.get(tab.windowId).push(tab)
       })
 
-      // 当前窗口排最前，其余按 windowId 顺序
+      // 固定组置顶 → 用户拖拽顺序 → 默认（当前窗口优先，其余按 windowId）
       const ids = Array.from(groups.keys()).sort((a, b) => {
+        const pa = windowPrefs[a]
+        const pb = windowPrefs[b]
+        const pinnedA = !!(pa && pa.pinned)
+        const pinnedB = !!(pb && pb.pinned)
+        if (pinnedA !== pinnedB) return pinnedA ? -1 : 1
+        const oa = pa && typeof pa.order === 'number' ? pa.order : null
+        const ob = pb && typeof pb.order === 'number' ? pb.order : null
+        if (oa !== null && ob !== null && oa !== ob) return oa - ob
+        if (oa !== null && ob === null) return -1
+        if (oa === null && ob !== null) return 1
         if (a === currentWindowId) return -1
         if (b === currentWindowId) return 1
         return a - b
@@ -516,18 +563,25 @@
         // 集合名：年月日 时分（当前窗口）/（窗口 N）
         const nameSuffix = isCurrent ? '（当前窗口）' : '（窗口 ' + windowNo + '）'
         const collapsed = collapsedWindows.has(windowId)
-        const section = NT.el('section', 'open-window' + (collapsed ? ' is-collapsed' : ''))
+        const pinned = !!(windowPrefs[windowId] && windowPrefs[windowId].pinned)
+        const section = NT.el('section', 'open-window' + (collapsed ? ' is-collapsed' : '') + (pinned ? ' is-pinned' : ''))
+        section.dataset.windowId = String(windowId)
 
-        // 组标题：点击展开 / 折叠
+        // 组标题：左侧 grip 拖动排序，其余区域点击展开 / 折叠
         const head = NT.el('button', 'open-window-head')
         head.type = 'button'
         head.title = collapsed ? '展开' : '折叠'
         head.setAttribute('aria-expanded', String(!collapsed))
+        const grip = NT.el('span', 'open-window-grip', '⠿')
+        grip.title = '拖动排序窗口分组'
+        head.appendChild(grip)
         head.appendChild(NT.el('span', 'open-window-title', label))
         const caret = NT.el('span', 'open-window-caret')
         caret.innerHTML = CARET_ICON
         head.appendChild(caret)
         head.addEventListener('click', () => {
+          // Sortable 拖完 grip 浏览器可能补发 click，避免误折叠
+          if (windowSorting) return
           if (collapsedWindows.has(windowId)) collapsedWindows.delete(windowId)
           else collapsedWindows.add(windowId)
           renderOpenTabs()
@@ -537,6 +591,21 @@
         // 标题下方：数量 + 保存该窗口的按钮
         const meta = NT.el('div', 'open-window-meta')
         meta.appendChild(NT.el('span', 'open-window-count', list.length + ' tabs'))
+        const pin = NT.el('button', 'open-window-pin' + (pinned ? ' is-on' : ''))
+        pin.type = 'button'
+        pin.title = pinned ? '取消固定（不再置顶）' : '固定在顶部'
+        pin.setAttribute('aria-label', pin.title)
+        pin.innerHTML = PIN_ICON
+        pin.addEventListener('click', (event) => {
+          event.stopPropagation()
+          const pref = windowPrefs[windowId] || (windowPrefs[windowId] = {})
+          pref.pinned = !pref.pinned
+          persistWindowPrefs()
+            .then(renderOpenTabs)
+            .catch((error) => console.warn('[newtab][sessions] 固定状态保存失败:', error.message))
+          console.log('[newtab][sessions] 窗口分组固定:', windowId, pref.pinned)
+        })
+        meta.appendChild(pin)
         const save = NT.el('button', 'window-save', '保存窗口标签')
         save.type = 'button'
         save.title = '把 ' + label + ' 的标签保存到左侧（已保存则更新）'
@@ -689,6 +758,16 @@
     })
     card.appendChild(edit)
 
+    // 未看完的标签：直接加入右侧暂存区
+    if (NT.stash && isRestorable(tab.url)) {
+      card.appendChild(NT.stash.addButton({
+        type: 'tab',
+        title: tab.title || tab.url,
+        url: tab.url,
+        favIconUrl: tab.favIconUrl || ''
+      }))
+    }
+
     function open() {
       if (isRestorable(tab.url)) NT.openInNewTab(tab.url)
     }
@@ -703,7 +782,13 @@
     // 左侧集合卡片拖拽：同集合内排序，或拖到另一个集合里
     card.draggable = true
     card.addEventListener('dragstart', (event) => {
-      startDrag(event, { kind: 'saved-tab', collectionId: collection.id, index })
+      startDrag(event, {
+        kind: 'saved-tab',
+        collectionId: collection.id,
+        index,
+        // 拖到暂存区时直接用这份条目，不改动原有集合内排序逻辑
+        entry: toEntry(tab),
+      })
     })
     card.addEventListener('dragend', clearDragMarks)
     card.addEventListener('dragover', (event) => allowDrop(event, card, COLLECTION_DROPS))
@@ -712,7 +797,7 @@
       const payload = readDrag(event, COLLECTION_DROPS)
       if (!payload) return
       event.preventDefault()
-      // open-tab 交给 section 冒泡处理（追加到集合末尾），这里只处理集合内卡片排序
+      // open-tab / stash-tab 交给 section 冒泡处理（追加到集合末尾），这里只处理集合内卡片排序
       if (payload.kind !== 'saved-tab') return
       event.stopPropagation()
       clearDragMarks()
@@ -1028,7 +1113,7 @@
 
     if (!collections.length) {
       box.appendChild(
-        NT.el('div', 'collections-empty', '还没有保存的标签集。点右侧窗口下方的「保存窗口标签」。')
+        NT.el('div', 'collections-empty', '还没有保存的标签集。可点右侧「保存窗口标签」，或把暂存区的标签拖进来。')
       )
       return
     }
@@ -1055,9 +1140,19 @@
         if (!payload) return
         event.preventDefault()
         clearDragMarks()
-        if (payload.kind === 'open-tab') addOpenTabToCollection(payload.entry, collection)
-        else if (payload.kind === 'open-group') addOpenGroupToCollection(payload.entries, collection)
-        else moveSavedTab(payload, collection, collection.tabs.length)
+        if (payload.kind === 'open-tab' || payload.kind === 'stash-tab') {
+          // 暂存区条目带自身元数据（id/type/done…），写入集合前只保留标签字段
+          const entry = payload.entry || {}
+          addOpenTabToCollection({
+            title: entry.title,
+            url: entry.url,
+            favIconUrl: entry.favIconUrl || ''
+          }, collection)
+        } else if (payload.kind === 'open-group') {
+          addOpenGroupToCollection(payload.entries, collection)
+        } else {
+          moveSavedTab(payload, collection, collection.tabs.length)
+        }
       })
       box.appendChild(section)
     })
@@ -1106,6 +1201,45 @@
     console.log('[newtab][sessions] 标签集拖拽排序已初始化')
   }
 
+  // Sortable 排序：只改窗口分组的 UI 顺序，不触碰真实标签页位置
+  function initWindowSort() {
+    const box = document.getElementById('openTabsList')
+    if (!box || typeof window.Sortable === 'undefined') {
+      if (typeof window.Sortable === 'undefined') console.warn('[newtab][sessions] Sortable 未加载，窗口排序不可用')
+      return
+    }
+    window.Sortable.create(box, {
+      animation: 180,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      handle: '.open-window-grip',
+      draggable: '.open-window',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      onStart: () => {
+        windowSorting = true
+        dragState = null
+        NT.dragState = null
+        clearDragMarks()
+      },
+      onEnd: (event) => {
+        dragState = null
+        NT.dragState = null
+        setTimeout(() => { windowSorting = false }, 0)
+        if (event.from !== event.to) return
+        const ids = []
+        box.querySelectorAll('.open-window').forEach((el) => { if (el.dataset.windowId) ids.push(el.dataset.windowId) })
+        ids.forEach((id, i) => {
+          const pref = windowPrefs[id] || (windowPrefs[id] = {})
+          pref.order = i
+        })
+        persistWindowPrefs().catch((error) => console.warn('[newtab][sessions] 窗口排序保存失败:', error.message))
+        console.log('[newtab][sessions] 窗口分组排序:', ids.join(' / '))
+      }
+    })
+    console.log('[newtab][sessions] 窗口分组拖拽排序已初始化')
+  }
+
   function init() {
     document.getElementById('refreshTabsBtn').addEventListener('click', scheduleRefresh)
     document.getElementById('createCollectionBtn').addEventListener('click', createEmptyCollection)
@@ -1119,7 +1253,8 @@
 
     loadCollections()
       .then(() => { initCollectionSort(); return renderCollections() })
-      .then(renderOpenTabs)
+      .then(loadWindowPrefs)
+      .then(() => { initWindowSort(); return renderOpenTabs() })
       .catch((error) => console.error('[newtab][sessions] 初始化失败:', error.message))
 
     console.log('[newtab][sessions] 已初始化')
@@ -1148,5 +1283,6 @@
     get collections() { return collections },
     get undoDepth() { return undoStack.length },
     get redoDepth() { return redoStack.length },
+    get windowPrefs() { return windowPrefs },
   }
 })(window.NT)

@@ -277,13 +277,169 @@ button:disabled {
   min-width: 0;
 }
 
-/* 右功能区：容器无背景 */
+/* 右功能区：宽度由 --side-width 控制（PC 可拖到 500px，记忆到 storage） */
 .side {
-  flex: 0 0 240px;
-  width: 240px;
+  --side-width: 240px;
+  position: relative;
+  flex: 0 0 var(--side-width);
+  width: var(--side-width);
   min-width: 0;
   padding: 22px 20px 20px 0;
   background: transparent;
+}
+
+/* 顶部折叠按钮：与 nav 的 toggle 同款，折叠后留在窄栏里可再次展开 */
+.side-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.side-toggle {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.side-toggle:hover {
+  background: var(--panel-60);
+  color: var(--text);
+}
+
+.side-toggle svg {
+  transition: transform 0.18s;
+}
+
+.side-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-70);
+}
+
+.side-tab {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.side-tab.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--accent-line);
+}
+
+.side-tab.is-active .side-tab-count {
+  background: var(--on-accent);
+  color: var(--accent);
+}
+
+.side-tab.is-drop-target {
+  outline: 2px dashed var(--accent-line);
+  outline-offset: -2px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.side-tab-count {
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* 折叠态：只留按钮 + 竖排标题，宽度收到 44px */
+.side.is-collapsed {
+  flex-basis: 44px;
+  width: 44px;
+  padding: 22px 6px 20px;
+}
+
+.side.is-collapsed .side-top {
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.side.is-collapsed .side-toggle svg {
+  transform: rotate(180deg);
+}
+
+.side.is-collapsed .side-tabs,
+.side.is-collapsed .side-body,
+.side.is-collapsed .side-resizer {
+  display: none;
+}
+
+.side-rail {
+  display: none;
+}
+
+.side.is-collapsed .side-rail {
+  display: block;
+  margin-top: 12px;
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  user-select: none;
+}
+
+/* 左边缘拖拽把手：只改变本侧栏宽度，不触碰 nav */
+.side-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 12px;
+  z-index: 5;
+  cursor: col-resize;
+}
+
+.side-resizer::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 0.18s;
+}
+
+.side-resizer:hover::after,
+.side.is-resizing .side-resizer::after {
+  background: var(--accent-line);
 }
 
 .open-panel {
@@ -338,8 +494,488 @@ button:disabled {
   padding-right: 2px;
 }
 
+/* ---------- 暂存区 ---------- */
+/* 暂存区分组：默认按年月日命名，支持置顶 / 重命名 / 删除 / 拖动排序 */
+.stash-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stash-group {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.stash-group.is-pinned {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.stash-group.is-drop-target {
+  outline: 2px dashed var(--accent-line);
+  outline-offset: 2px;
+}
+
+.stash-group-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 24px;
+}
+
+.stash-group-grip {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.stash-group-fold {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.16s, background-color 0.16s;
+}
+
+.stash-group-fold:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.stash-group-fold svg {
+  display: block;
+  transition: transform 0.16s;
+}
+
+.stash-group.is-folded .stash-group-fold svg {
+  transform: rotate(-90deg);
+}
+
+.stash-group-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-group-count {
+  flex: 0 0 auto;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.stash-group-pin,
+.stash-group-rename,
+.stash-group-del {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.16s, color 0.16s, background-color 0.16s;
+}
+
+.stash-group:hover .stash-group-pin,
+.stash-group:hover .stash-group-rename,
+.stash-group:hover .stash-group-del,
+.stash-group-pin:focus-visible,
+.stash-group-rename:focus-visible,
+.stash-group-del:focus-visible {
+  opacity: 1;
+}
+
+.stash-group-pin.is-on {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.stash-group-pin:hover,
+.stash-group-rename:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.stash-group-del:hover {
+  color: var(--danger);
+  background: var(--surface-3);
+}
+
+.stash-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.stash-group.is-folded .stash-group-items {
+  display: none;
+}
+
+.stash-group-empty {
+  padding: 12px 6px;
+  border: 1px dashed var(--line-2);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (hover: none) {
+  .stash-group-pin,
+  .stash-group-rename,
+  .stash-group-del {
+    opacity: 1;
+  }
+}
+
+.stash-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stash-list {
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px;
+  border: 1px dashed transparent;
+  border-radius: 12px;
+}
+
+.stash-panel.is-drop-target {
+  outline: 2px dashed var(--accent-line);
+  outline-offset: 4px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+/* 面板拖拽高亮时列表保持原样，避免双层虚线 */
+.stash-panel.is-drop-target .stash-list {
+  border-color: transparent;
+  background: transparent;
+}
+
+@keyframes stash-undo-shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.stash-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 4px var(--overlay);
+  color: var(--text-2);
+  font-size: 12px;
+  transition: box-shadow 0.16s, transform 0.16s, opacity 0.16s;
+}
+
+.stash-item:hover {
+  box-shadow: 0 3px 10px var(--overlay-2);
+  transform: translateY(-1px);
+}
+
+.stash-item[draggable='true'] {
+  cursor: grab;
+}
+
+.stash-item.is-dragging {
+  opacity: 0.5;
+}
+
+.stash-item.is-done {
+  opacity: 0.58;
+}
+
+.stash-favicon {
+  width: 18px;
+  height: 18px;
+}
+
+.stash-main {
+  flex: 1;
+  min-width: 0;
+  padding-right: 20px;
+}
+
+.stash-title {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-item.is-done .stash-title {
+  text-decoration: line-through;
+}
+
+.stash-meta {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.stash-check:disabled {
+  cursor: not-allowed;
+}
+
+.stash-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 12px 12px 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.16s, color 0.16s;
+}
+
+.stash-item:hover .stash-del,
+.stash-del:focus-visible {
+  opacity: 1;
+}
+
+.stash-del:hover {
+  color: var(--danger);
+}
+
+.stash-empty {
+  padding: 28px 8px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* 底部撤销条：深色 toast，10 秒进度条 */
+.stash-undo {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px 12px;
+  border-radius: 12px;
+  background: var(--toast-bg);
+  color: var(--on-toast);
+  box-shadow: 0 8px 24px var(--shadow-strong);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.stash-undo-text {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-undo-btn {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--toast-btn);
+  color: var(--on-toast);
+  font-size: 12px;
+}
+
+.stash-undo-btn:hover {
+  background: var(--toast-btn-hover);
+}
+
+.stash-undo-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+
+/* 各来源的「加入暂存区」小按钮：与 .site-edit / .tab-card-edit 同款 */
+.stash-add {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: var(--panel-86);
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.18s, color 0.18s;
+}
+
+.stash-add svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stash-add:hover,
+.stash-add:focus-visible {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.tab-card .stash-add {
+  position: absolute;
+  top: 6px;
+  right: calc(8px + var(--tab-card-del-size) * 2 + 12px);
+  background: var(--surface);
+  box-shadow: 0 1px 4px var(--overlay-2);
+}
+
+.tab-card:hover .stash-add,
+.open-tab:hover .stash-add,
+.site-tile:hover .stash-add,
+.history-item:hover .stash-add {
+  opacity: 1;
+}
+
+.open-tab .stash-add {
+  position: absolute;
+  top: 50%;
+  right: 32px;
+  transform: translateY(-50%);
+  background: var(--surface);
+}
+
+.site-tile .stash-add {
+  position: absolute;
+  top: 2px;
+  right: 28px;
+}
+
+.history-item .stash-add {
+  margin-left: 2px;
+}
+
+/* 触屏无 hover：常显，否则按钮永远透明点不到 */
+@media (hover: none) {
+  .stash-add { opacity: 1; }
+}
+
 .open-window + .open-window {
   margin-top: 18px;
+}
+
+.open-window-grip {
+  flex: 0 0 auto;
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.open-window.is-pinned > .open-window-head .open-window-title::before {
+  content: '固定 · ';
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.open-window-pin {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  transition: color 0.16s, border-color 0.16s, background-color 0.16s;
+}
+
+.open-window-pin:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.open-window-pin.is-on {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
 
 .open-window-head {
@@ -1216,6 +1852,10 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+.history-item[draggable='true'] {
+  cursor: grab;
+}
+
 .history-meta {
   flex: 1;
   min-width: 0;
@@ -1263,8 +1903,7 @@ button:disabled {
     width: 168px;
   }
   .side {
-    flex-basis: 210px;
-    width: 210px;
+    --side-width: 210px;
   }
   .header {
     padding: 18px 20px;
@@ -1382,11 +2021,20 @@ button:disabled {
     flex-wrap: wrap;
   }
 
-  /* 右功能区不再横向挤占 210px，改为内容下方的全宽区块 */
-  .side {
+  /* 右功能区不再横向挤占宽度，改为内容下方的全宽区块；移动端禁止横向拉伸 */
+  .side,
+  .side.is-collapsed {
     flex: 0 0 auto;
     width: 100%;
     padding: 16px 14px 28px;
+  }
+  .side-resizer,
+  .side.is-collapsed .side-rail {
+    display: none;
+  }
+  .stash-list {
+    max-height: none;
+    overflow: visible;
   }
   .open-tabs {
     max-height: none;
@@ -2005,6 +2653,15 @@ button:disabled {
 
 .notes-row:hover {
   box-shadow: 0 2px 8px var(--overlay-2);
+}
+
+/* 待办行可拖入右侧暂存区 */
+.notes-row[draggable='true'] {
+  cursor: grab;
+}
+
+.notes-row.is-dragging {
+  opacity: 0.5;
 }
 
 .notes-row.is-overdue {

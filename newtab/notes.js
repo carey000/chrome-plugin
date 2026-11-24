@@ -30,6 +30,7 @@
   ]
 
   var items = []
+  var ready = false         // 存储是否已读取完成；未完成前不要把空数组广播给暂存区
   var filter = 'all'
   var collapsed = false
   var selected = {}          // id -> true，Ctrl / ⌘ 多选
@@ -92,11 +93,13 @@
     }
     NT.storageGet(KEY).then(function (data) {
       items = normalize(data[KEY])
+      ready = true
       render()
       console.log('[newtab][notes] 初始化完成，读取', items.length, '条待办')
     }).catch(function (error) {
       showError('读取失败：' + error.message)
       console.error('[newtab][notes] 读取失败:', error.message)
+      ready = true
       render()
     })
   }
@@ -255,6 +258,34 @@
     })
     row.appendChild(more)
 
+    // 待办行可拖进右侧暂存区；便签本身仍留在原列表，不做移动
+    row.draggable = !editingId
+    row.addEventListener('dragstart', function (event) {
+      if (editingId === item.id) { event.preventDefault(); return }
+      var payload = {
+        kind: 'note-todo',
+        noteId: item.id,
+        title: item.text || '（空待办）',
+        due: item.due || '',
+        done: isArchived(item)
+      }
+      NT.dragState = payload
+      row.classList.add('is-dragging')
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'copy'
+        try {
+          event.dataTransfer.setData('text/plain', JSON.stringify(payload))
+        } catch (error) {
+          console.warn('[newtab][notes] 拖拽数据写入失败:', error.message)
+        }
+      }
+      console.log('[newtab][notes] 拖出待办:', item.id, item.text)
+    })
+    row.addEventListener('dragend', function () {
+      row.classList.remove('is-dragging')
+      NT.dragState = null
+    })
+
     row.addEventListener('click', function (event) {
       if (event.ctrlKey || event.metaKey) {
         toggleSelect(item.id)
@@ -399,6 +430,8 @@
     }
     archiveList.hidden = collapsed
     console.log('[newtab][notes] 渲染:', filter, '活动', active.length, '归档', archived.length)
+    // 暂存区监听此事件同步便签项的完成状态；只有状态字段被读取，不反向写 notes
+    document.dispatchEvent(new CustomEvent('nt:notes-changed', { detail: items.slice() }))
   }
 
   // ---------- 操作层 ----------
@@ -420,6 +453,25 @@
     delete selected[id]
     save('完成待办')
     render()
+  }
+
+  // 暂存区勾选 / 取消勾选调用：和便签自身的 checkbox 走同一条写盘路径
+  function setDone(id, done) {
+    var item = find(id)
+    if (!item || !item.id) return
+    if (done) {
+      if (!item.done || item.abandoned) toggleDone(id)
+      console.log('[newtab][notes] 暂存区标记完成:', id)
+      return
+    }
+    if (!item.done && !item.abandoned) return
+    item.done = false
+    item.abandoned = false
+    item.doneAt = 0
+    delete selected[id]
+    save('暂存区恢复待办')
+    render()
+    console.log('[newtab][notes] 暂存区恢复待办:', id)
   }
 
   function move(id, delta) {
@@ -581,6 +633,8 @@
   NT.notes = {
     init: load,
     render: render,
+    setDone: setDone,
+    get ready() { return ready },
     get items() { return items },
     get filter() { return filter }
   }

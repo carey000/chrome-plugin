@@ -271,6 +271,16 @@
     })
     tile.appendChild(edit)
 
+    // 网址导航的站点：加入右侧暂存区，留着以后读
+    if (!pending && NT.stash) {
+      tile.appendChild(NT.stash.addButton({
+        type: 'site',
+        title: site.name,
+        url: site.url,
+        favIconUrl: site.icon || ''
+      }))
+    }
+
     tile.addEventListener('click', function () {
       if (pending) {
         console.log('[newtab][sites] 网址待补，未跳转:', site.name)
@@ -303,10 +313,20 @@
     tile.addEventListener('dragstart', function (event) {
       hideTooltip()
       dragCtx = { type: 'site', id: site.id }
+      // 跨分类移动仍用原有 'site:id' 载荷；拖到暂存区走 NT.dragState
+      if (NT.stash && site.url) {
+        NT.dragState = {
+          kind: 'site',
+          entry: { title: site.name, url: site.url, favIconUrl: site.icon || '' }
+        }
+      }
       try { event.dataTransfer.setData('text/plain', 'site:' + site.id) } catch (error) { /* 忽略 */ }
       console.log('[newtab][sites] 开始拖动站点:', site.name)
     })
-    tile.addEventListener('dragend', clearDrag)
+    tile.addEventListener('dragend', function () {
+      NT.dragState = null
+      clearDrag()
+    })
     return tile
   }
 

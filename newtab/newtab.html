@@ -253,22 +253,60 @@
         </main>
       </div>
 
-      <!-- 右：功能区 240px，仅标签管理时显示（默认网址导航，故初始隐藏） -->
-      <aside class="side" id="sidePanel" hidden>
-        <section class="open-panel">
-          <div class="open-panel-head">
-            <div>
-              <div class="panel-title">Open Tabs</div>
-              <div class="open-panel-summary" id="openTabsSummary">读取中…</div>
+      <!-- 右：功能区（所有 nav 常驻）；标签管理时 Open Tabs / 暂存区 tab 切换 -->
+      <aside class="side" id="sidePanel">
+        <div class="side-top">
+          <button class="side-toggle" id="sideToggle" type="button" aria-label="折叠功能区" aria-expanded="true" title="折叠功能区">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="m10 7 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <div class="side-tabs" id="sideTabs" hidden role="tablist" aria-label="右侧功能区">
+          <button class="side-tab is-active" data-side-tab="open" type="button" role="tab" aria-selected="true">Open Tabs</button>
+          <button class="side-tab" data-side-tab="stash" type="button" role="tab" aria-selected="false">
+            暂存区 <span class="side-tab-count" id="sideStashCount">0</span>
+          </button>
+        </div>
+        <div class="side-body" id="sideBody">
+          <section class="open-panel" id="openPanel" hidden>
+            <div class="open-panel-head">
+              <div>
+                <div class="panel-title">Open Tabs</div>
+                <div class="open-panel-summary" id="openTabsSummary">读取中…</div>
+              </div>
+              <button class="icon-btn" id="refreshTabsBtn" type="button" title="刷新">
+                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                  <path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
             </div>
-            <button class="icon-btn" id="refreshTabsBtn" type="button" title="刷新">
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
-          </div>
-          <div class="open-tabs" id="openTabsList"></div>
-        </section>
+            <div class="open-tabs" id="openTabsList"></div>
+          </section>
+          <section class="stash-panel" id="stashPanel" hidden>
+            <div class="stash-panel-head">
+              <div>
+                <div class="panel-title">暂存区</div>
+                <div class="open-panel-summary" id="stashSummary">0 项 · 待读</div>
+              </div>
+              <div class="stash-head-actions">
+                <button class="icon-btn" id="stashNewGroupBtn" type="button" title="新建分组" aria-label="新建分组">
+                  <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <button class="icon-btn" id="stashRefreshBtn" type="button" title="刷新便签状态">
+                  <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                    <path d="M20 11a8 8 0 1 0-2.3 6M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="stash-list" id="stashList"></div>
+          </section>
+        </div>
+        <div class="side-rail" id="sideRail" aria-hidden="true">暂存区</div>
+        <div class="side-resizer" id="sideResizer" title="拖动调整宽度"></div>
       </aside>
     </div>
 
@@ -443,6 +481,7 @@
     <script src="../src/favicon.js"></script>
     <script src="../src/theme.js"></script>
     <script src="./common.js"></script>
+    <script src="./stash.js"></script>
     <script src="./engines.js"></script>
     <script src="./search.js"></script>
     <script src="./sessions.js"></script>
